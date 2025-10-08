@@ -16,19 +16,16 @@ return new class extends Migration
             $table->foreignId('tenant_id')->constrained()->onDelete('cascade');
             $table->foreignId('category_id')->nullable()->constrained()->onDelete('set null');
             $table->string('name');
-            $table->string('slug');
             $table->text('description')->nullable();
-            $table->decimal('price', 10, 2); // Preço do serviço
-            $table->integer('duration'); // Duração em minutos
-            $table->string('image')->nullable(); // Imagem do serviço
+            $table->decimal('price', 10, 2);
+            $table->integer('duration');
+            $table->string('color')->default('#3B82F6');
             $table->boolean('is_active')->default(true);
-            $table->boolean('requires_approval')->default(false); // Se precisa aprovação do dono
-            $table->integer('max_bookings_per_slot')->default(1); // Quantas pessoas podem agendar no mesmo horário
-            $table->integer('buffer_time')->default(0); // Tempo de buffer entre agendamentos (minutos)
+            $table->boolean('requires_approval')->default(false);
+            $table->integer('max_bookings_per_slot')->default(1);
+            $table->integer('buffer_time')->default(0);
             $table->timestamps();
             $table->softDeletes();
-
-            $table->unique(['tenant_id', 'slug']);
         });
     }
 

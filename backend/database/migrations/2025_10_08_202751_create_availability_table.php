@@ -11,20 +11,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('availability', function (Blueprint $table) {
+        Schema::create('availabilities', function (Blueprint $table) {
             $table->id();
             $table->foreignId('tenant_id')->constrained()->onDelete('cascade');
-            $table->foreignId('employee_id')->nullable()->constrained('users')->onDelete('cascade'); // NULL = geral do tenant
+            $table->foreignId('service_id')->nullable()->constrained('services')->onDelete('cascade');
             $table->enum('day_of_week', ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']);
             $table->time('start_time');
             $table->time('end_time');
             $table->boolean('is_available')->default(true);
-            $table->date('specific_date')->nullable(); // Para horários especiais/exceções
-            $table->enum('type', ['regular', 'exception'])->default('regular'); // regular = recorrente, exception = data específica
+            $table->date('exception_date')->nullable();
+            $table->enum('type', ['regular', 'exception'])->default('regular');
             $table->timestamps();
 
             $table->index(['tenant_id', 'day_of_week']);
-            $table->index(['tenant_id', 'employee_id']);
+            $table->index(['tenant_id', 'service_id']);
         });
     }
 
@@ -33,6 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('availability');
+        Schema::dropIfExists('availabilities');
     }
 };
