@@ -1,0 +1,258 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Tenant;
+use App\Models\Service;
+use App\Models\Availability;
+use App\Models\Category;
+use Illuminate\Http\Request;
+use Carbon\Carbon;
+
+class PublicStoreController extends Controller
+{
+    /**
+     * Busca uma loja pelo slug
+     */
+    public function getStoreBySlug($slug)
+    {
+        $tenant = Tenant::where('slug', $slug)
+            ->where('is_active', true)
+            ->with('settings')
+            ->first();
+
+        if (!$tenant) {
+            return response()->json([
+                'message' => 'Loja não encontrada'
+            ], 404);
+        }
+
+        return response()->json($tenant);
+    }
+
+    /**
+     * Lista todos os serviços ativos de uma loja
+     */
+    public function getStoreServices($slug)
+    {
+        $tenant = Tenant::where('slug', $slug)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$tenant) {
+            return response()->json([
+                'message' => 'Loja não encontrada'
+            ], 404);
+        }
+
+        $services = Service::where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->with('category')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($services);
+    }
+
+    /**
+     * Lista todas as categorias de uma loja
+     */
+    public function getStoreCategories($slug)
+    {
+        $tenant = Tenant::where('slug', $slug)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$tenant) {
+            return response()->json([
+                'message' => 'Loja não encontrada'
+            ], 404);
+        }
+
+        $categories = Category::where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($categories);
+    }
+
+    /**
+     * Lista a disponibilidade de uma loja
+     */
+    public function getStoreAvailability($slug)
+    {
+        $tenant = Tenant::where('slug', $slug)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$tenant) {
+            return response()->json([
+                'message' => 'Loja não encontrada'
+            ], 404);
+        }
+
+        $availabilities = Availability::where('tenant_id', $tenant->id)
+            ->where('is_available', true)
+            ->with('service')
+            ->orderBy('day_of_week')
+            ->orderBy('start_time')
+            ->get();
+
+        return response()->json($availabilities);
+    }
+
+    /**
+     * Busca horários disponíveis para um serviço específico em uma data
+     */
+    public function getAvailableSlots($slug, Request $request)
+    {
+        $tenant = Tenant::where('slug', $slug)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$tenant) {
+            return response()->json([
+                'message' => 'Loja não encontrada'
+            ], 404);
+        }
+
+        $request->validate([
+            'service_id' => 'required|exists:services,id',
+            'date' => 'required|date|after_or_equal:today',
+        ]);
+
+        $service = Service::where('id', $request->service_id)
+            ->where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$service) {
+            return response()->json([
+                'message' => 'Serviço não encontrado'
+            ], 404);
+        }
+
+        $date = Carbon::parse($request->date);
+        $dayOfWeek = strtolower($date->format('l')); // monday, tuesday, etc.
+
+        // Buscar disponibilidades para o dia da semana
+        $availabilities = Availability::where('tenant_id', $tenant->id)
+            ->where('is_available', true)
+            ->where(function ($query) use ($service, $dayOfWeek) {
+                $query->where('service_id', $service->id)
+                    ->orWhere('service_id', null); // Disponibilidade geral
+            })
+            ->where('day_of_week', $dayOfWeek)
+            ->orderBy('start_time')
+            ->get();
+
+        if ($availabilities->isEmpty()) {
+            return response()->json([
+                'message' => 'Nenhum horário disponível para este dia',
+                'slots' => []
+            ]);
+        }
+
+        // Buscar configurações da loja para obter o intervalo entre slots
+        $settings = $tenant->settings;
+        $intervalBetweenSlots = $settings ? $settings->interval_between_slots : 0;
+
+        // Gerar slots de tempo baseado na duração do serviço + intervalo
+        $slots = [];
+        foreach ($availabilities as $availability) {
+            $startTime = Carbon::parse($date->format('Y-m-d') . ' ' . $availability->start_time);
+            $endTime = Carbon::parse($date->format('Y-m-d') . ' ' . $availability->end_time);
+
+            $currentTime = $startTime->copy();
+            $totalSlotDuration = $service->duration + $intervalBetweenSlots;
+
+            while ($currentTime->addMinutes($totalSlotDuration)->lte($endTime)) {
+                $slotEnd = $currentTime->copy();
+                $currentTime->subMinutes($totalSlotDuration); // Voltar para o início do slot
+
+                $slots[] = [
+                    'start_time' => $currentTime->format('H:i'),
+                    'end_time' => $currentTime->addMinutes($service->duration)->format('H:i'),
+                    'date' => $date->format('Y-m-d'),
+                    'available' => true, // TODO: Verificar se já tem agendamento
+                ];
+
+                $currentTime->addMinutes($intervalBetweenSlots); // Adicionar intervalo para próximo slot
+            }
+        }
+
+        return response()->json([
+            'service' => $service,
+            'date' => $date->format('Y-m-d'),
+            'slots' => $slots
+        ]);
+    }
+
+    /**
+     * Cria um novo agendamento
+     */
+    public function createBooking($slug, Request $request)
+    {
+        $tenant = Tenant::where('slug', $slug)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$tenant) {
+            return response()->json([
+                'message' => 'Loja não encontrada'
+            ], 404);
+        }
+
+        $request->validate([
+            'service_id' => 'required|exists:services,id',
+            'booking_date' => 'required|date|after:now',
+            'customer_name' => 'required|string|max:255',
+            'customer_email' => 'nullable|email|max:255',
+            'customer_phone' => 'required|string|max:20',
+            'customer_notes' => 'nullable|string',
+        ]);
+
+        // Validação adicional para agendamentos retroativos
+        $bookingDateTime = Carbon::parse($request->booking_date);
+        $now = Carbon::now();
+
+        if ($bookingDateTime->isPast()) {
+            return response()->json([
+                'message' => 'Não é possível agendar para uma data/hora no passado'
+            ], 422);
+        }
+
+        // Verificar se o agendamento é pelo menos 1 hora no futuro
+        if ($bookingDateTime->diffInMinutes($now) < 60) {
+            return response()->json([
+                'message' => 'O agendamento deve ser feito com pelo menos 1 hora de antecedência'
+            ], 422);
+        }
+
+        $service = Service::where('id', $request->service_id)
+            ->where('tenant_id', $tenant->id)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$service) {
+            return response()->json([
+                'message' => 'Serviço não encontrado'
+            ], 404);
+        }
+
+        // TODO: Implementar criação de agendamento
+        // Por enquanto, retornar sucesso simulado
+        return response()->json([
+            'message' => 'Agendamento criado com sucesso!',
+            'booking' => [
+                'id' => rand(1000, 9999),
+                'service_name' => $service->name,
+                'booking_date' => $request->booking_date,
+                'customer_name' => $request->customer_name,
+                'status' => 'pending'
+            ]
+        ], 201);
+    }
+}

@@ -4,11 +4,14 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { login } from "@/services/auth"
+import { ThemeToggle } from "@/components/ThemeToggle"
+import { useThemeClasses } from "@/hooks/useThemeClasses"
 
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const { getInputClasses, getLabelClasses } = useThemeClasses()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -29,6 +32,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
+      {/* Botão de Toggle de Tema */}
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-md">
         {/* Card de Login */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 space-y-8">
@@ -62,7 +70,7 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="email" className={getLabelClasses()}>
                 Email
               </label>
               <input
@@ -71,13 +79,13 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className={`${getInputClasses()} focus:border-transparent`}
                 placeholder="seu@email.com"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="password" className={getLabelClasses()}>
                 Senha
               </label>
               <input
@@ -86,7 +94,7 @@ export default function LoginPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className={`${getInputClasses()} focus:border-transparent`}
                 placeholder="••••••••"
               />
             </div>
@@ -129,13 +137,22 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Cadastro */}
-          <Link
-            href="/cadastro"
-            className="block w-full text-center bg-white dark:bg-gray-700 border-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 font-semibold py-3 px-4 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-600 transition-all duration-150"
-          >
-            Criar minha conta grátis
-          </Link>
+          {/* Links */}
+          <div className="space-y-3">
+            <Link
+              href="/cadastro"
+              className="block w-full text-center bg-white dark:bg-gray-700 border-2 border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 font-semibold py-3 px-4 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-600 transition-all duration-150"
+            >
+              Criar minha conta grátis
+            </Link>
+
+            <Link
+              href="/lojas"
+              className="block w-full text-center bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-150"
+            >
+              Ver Lojas Disponíveis
+            </Link>
+          </div>
         </div>
 
         {/* Footer */}

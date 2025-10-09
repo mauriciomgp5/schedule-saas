@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { getUser } from "@/services/auth"
 import { getAvailabilities, createAvailability, updateAvailability, deleteAvailability, Availability } from "@/services/availabilities"
+import { ThemeToggle } from "@/components/ThemeToggle"
 
 const daysOfWeek = [
   { value: 'monday', label: 'Segunda-feira' },
@@ -186,15 +187,18 @@ export default function HorariosPage() {
                 <p className="text-sm text-gray-600 dark:text-gray-400">Configure sua disponibilidade</p>
               </div>
             </div>
-            <button
-              onClick={() => handleOpenModal()}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span>Novo Horario</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <ThemeToggle />
+              <button
+                onClick={() => handleOpenModal()}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Novo Horario</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -305,7 +309,7 @@ export default function HorariosPage() {
                   required
                   value={formData.day_of_week}
                   onChange={(e) => setFormData({ ...formData, day_of_week: e.target.value as any })}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="form-input"
                 >
                   {daysOfWeek.map(day => (
                     <option key={day.value} value={day.value}>{day.label}</option>
@@ -321,7 +325,7 @@ export default function HorariosPage() {
                     required
                     value={formData.start_time}
                     onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="form-input"
                   />
                 </div>
 
@@ -332,7 +336,7 @@ export default function HorariosPage() {
                     required
                     value={formData.end_time}
                     onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="form-input"
                   />
                 </div>
               </div>
