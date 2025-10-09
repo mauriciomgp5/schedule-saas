@@ -3,7 +3,8 @@
 import { useParams, useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { getStoreBySlug, getStoreServices, getAvailableSlots, createBooking, Store, Service, TimeSlot, BookingRequest } from "@/services/publicStore"
-import { ThemeToggle } from "@/components/ThemeToggle"
+import { CustomerHeader } from "@/components/CustomerHeader"
+import { AuthModal } from "@/components/AuthModal"
 import { useThemeClasses } from "@/hooks/useThemeClasses"
 
 export default function BookingPage() {
@@ -28,12 +29,54 @@ export default function BookingPage() {
         customer_name: '',
         customer_email: '',
         customer_phone: '',
-        customer_notes: ''
+        customer_notes: '',
+        accept_whatsapp_reminders: true
     })
 
+    // Função para formatar telefone
+    const formatPhone = (value: string) => {
+        // Remove tudo que não é número
+        const numbers = value.replace(/\D/g, '')
+
+        // Aplica a máscara (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
+        if (numbers.length <= 2) {
+            return numbers
+        } else if (numbers.length <= 6) {
+            return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`
+        } else if (numbers.length <= 10) {
+            return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 6)}-${numbers.slice(6)}`
+        } else {
+            return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`
+        }
+    }
+
+    const handlePhoneChange = (value: string) => {
+        const formatted = formatPhone(value)
+        setFormData({ ...formData, customer_phone: formatted })
+    }
+
     useEffect(() => {
+        // Verificar autenticação
+        const customerPhone = localStorage.getItem('customerPhone')
+        const customerAuthenticated = localStorage.getItem('customerAuthenticated')
+
+        if (!customerPhone || !customerAuthenticated) {
+            router.push(`/${slug}/customer/login`)
+            return
+        }
+
+        // Auto-preencher dados do cliente
+        const customerName = localStorage.getItem('customerName')
+        if (customerName) {
+            setFormData(prev => ({
+                ...prev,
+                customer_name: customerName,
+                customer_phone: customerPhone
+            }))
+        }
+
         loadStoreAndService()
-    }, [slug, serviceId])
+    }, [slug, serviceId, router])
 
     useEffect(() => {
         if (selectedDate) {
@@ -98,27 +141,57 @@ export default function BookingPage() {
             return
         }
 
-        // Verificar se é pelo menos 1 hora no futuro
-        const diffInMinutes = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60)
-        if (diffInMinutes < 60) {
-            setError('O agendamento deve ser feito com pelo menos 1 hora de antecedência')
-            return
+        // Se for para um dia diferente (futuro), sempre permitir
+        const isSameDay = bookingDateTime.toDateString() === now.toDateString()
+
+        if (isSameDay) {
+            // Para o mesmo dia, verificar se é pelo menos 1 hora no futuro
+            const diffInMinutes = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60)
+            if (diffInMinutes < 60) {
+                const currentTime = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                const bookingTime = bookingDateTime.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                const bookingDate = bookingDateTime.toLocaleDateString('pt-BR')
+                setError(`O agendamento deve ser feito com pelo menos 1 hora de antecedência. Horário atual: ${currentTime}, Agendamento solicitado: ${bookingTime} do dia ${bookingDate}`)
+                return
+            }
         }
+        // Se for para dia futuro, não precisa validar horário
 
         try {
             setSubmitting(true)
             setError('')
 
+            // Criar data no timezone local
+            const bookingDateTime = new Date(`${selectedDate}T${selectedTime}`)
+
             const bookingData: BookingRequest = {
                 service_id: serviceId,
-                booking_date: `${selectedDate} ${selectedTime}`,
+                booking_date: bookingDateTime.toISOString(),
                 customer_name: formData.customer_name,
                 customer_email: formData.customer_email,
                 customer_phone: formData.customer_phone,
-                customer_notes: formData.customer_notes
+                customer_notes: formData.customer_notes,
+                accept_whatsapp_reminders: formData.accept_whatsapp_reminders
             }
 
-            await createBooking(slug, bookingData)
+            console.log('Submitting booking:', bookingData)
+            const result = await createBooking(slug, bookingData)
+
+            // Salvar o novo agendamento no localStorage para a página de agendamentos
+            const newBooking = {
+                id: result.booking.id,
+                service_name: result.booking.service_name,
+                booking_date: result.booking.booking_date,
+                customer_name: result.booking.customer_name,
+                status: result.booking.status,
+                whatsapp_reminders: result.booking.whatsapp_reminders
+            }
+            console.log('Salvando novo agendamento no localStorage:', newBooking)
+            localStorage.setItem('newBooking', JSON.stringify(newBooking))
+
+            // Salvar telefone do cliente para futuras consultas
+            localStorage.setItem('customerPhone', formData.customer_phone)
+
             setSuccess(true)
         } catch (error: any) {
             console.error('Erro ao criar agendamento:', error)
@@ -166,27 +239,6 @@ export default function BookingPage() {
         )
     }
 
-    if (error && !success) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-100">
-                <div className="bg-white rounded-2xl shadow-xl p-8 text-center max-w-md">
-                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                        </svg>
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-900 mb-2">Erro</h2>
-                    <p className="text-gray-600 mb-4">{error}</p>
-                    <button
-                        onClick={() => router.push(`/${slug}/customer`)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-                    >
-                        Voltar para Serviços
-                    </button>
-                </div>
-            </div>
-        )
-    }
 
     if (success) {
         return (
@@ -201,12 +253,20 @@ export default function BookingPage() {
                     <p className="text-gray-600 mb-4">
                         Seu agendamento foi criado com sucesso. Você receberá um email de confirmação em breve.
                     </p>
-                    <button
-                        onClick={() => router.push(`/${slug}/customer`)}
-                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-                    >
-                        Voltar para Serviços
-                    </button>
+                    <div className="flex space-x-3">
+                        <button
+                            onClick={() => router.push(`/${slug}/customer/agendamentos`)}
+                            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+                        >
+                            Ver Meus Agendamentos
+                        </button>
+                        <button
+                            onClick={() => router.push(`/${slug}/customer`)}
+                            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition"
+                        >
+                            Voltar para Serviços
+                        </button>
+                    </div>
                 </div>
             </div>
         )
@@ -218,32 +278,7 @@ export default function BookingPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
-            {/* Botão de Toggle de Tema */}
-            <div className="fixed top-4 right-4 z-50">
-                <ThemeToggle />
-            </div>
-
-            {/* Header */}
-            <header className="bg-white dark:bg-gray-800 shadow-lg">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <button
-                                onClick={() => router.push(`/${slug}/customer`)}
-                                className="p-2 hover:bg-gray-100 rounded-lg transition"
-                            >
-                                <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                </svg>
-                            </button>
-                            <div>
-                                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Agendar Serviço</h1>
-                                <p className="text-sm text-gray-600 dark:text-gray-300">{store.name}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </header>
+            <CustomerHeader slug={slug} storeName={store?.name} />
 
             <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -288,7 +323,7 @@ export default function BookingPage() {
 
                         <form onSubmit={handleSubmit} className="space-y-4">
                             {error && (
-                                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
                                     <div className="flex">
                                         <div className="flex-shrink-0">
                                             <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
@@ -296,7 +331,10 @@ export default function BookingPage() {
                                             </svg>
                                         </div>
                                         <div className="ml-3">
-                                            <p className="text-sm text-red-800">{error}</p>
+                                            <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                                                Erro no Agendamento
+                                            </h3>
+                                            <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -359,39 +397,33 @@ export default function BookingPage() {
                             )}
 
                             {/* Dados do Cliente */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className={getLabelClasses()}>Nome *</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        value={formData.customer_name}
-                                        onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
-                                        className={getInputClasses()}
-                                    />
+                            <div className="space-y-4">
+                                {/* Mostrar dados salvos */}
+                                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                                    <h3 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">Seus Dados</h3>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between">
+                                            <span className="text-sm text-blue-700 dark:text-blue-300">Nome:</span>
+                                            <span className="text-sm font-medium text-blue-800 dark:text-blue-200">{formData.customer_name}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm text-blue-700 dark:text-blue-300">Telefone:</span>
+                                            <span className="text-sm font-medium text-blue-800 dark:text-blue-200">{formData.customer_phone}</span>
+                                        </div>
+                                    </div>
                                 </div>
 
+                                {/* Campo de email (opcional) */}
                                 <div>
-                                    <label className={getLabelClasses()}>Email</label>
+                                    <label className={getLabelClasses()}>Email (opcional)</label>
                                     <input
                                         type="email"
                                         value={formData.customer_email}
                                         onChange={(e) => setFormData({ ...formData, customer_email: e.target.value })}
                                         className={getInputClasses()}
-                                        placeholder="opcional"
+                                        placeholder="seu@email.com"
                                     />
                                 </div>
-                            </div>
-
-                            <div>
-                                <label className={getLabelClasses()}>Telefone *</label>
-                                <input
-                                    type="tel"
-                                    required
-                                    value={formData.customer_phone}
-                                    onChange={(e) => setFormData({ ...formData, customer_phone: e.target.value })}
-                                    className={getInputClasses()}
-                                />
                             </div>
 
                             <div>
@@ -403,6 +435,28 @@ export default function BookingPage() {
                                     className={getInputClasses()}
                                     placeholder="Alguma observação especial?"
                                 />
+                            </div>
+
+                            {/* Checkbox para lembretes via WhatsApp */}
+                            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                                <div className="flex items-start">
+                                    <div className="flex items-center h-5">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.accept_whatsapp_reminders}
+                                            onChange={(e) => setFormData({ ...formData, accept_whatsapp_reminders: e.target.checked })}
+                                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                        />
+                                    </div>
+                                    <div className="ml-3">
+                                        <label className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                                            📱 Receber lembretes via WhatsApp
+                                        </label>
+                                        <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                                            Receba lembretes automáticos minutos antes do seu agendamento
+                                        </p>
+                                    </div>
+                                </div>
                             </div>
 
                             <button

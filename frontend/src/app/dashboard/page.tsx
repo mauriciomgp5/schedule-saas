@@ -4,20 +4,42 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { getUser, logout } from "@/services/auth"
 import { ThemeToggle } from "@/components/ThemeToggle"
+import { apiRequest } from "@/lib/api"
 
 export default function Dashboard() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    const userData = getUser()
-    if (!userData) {
-      router.push('/')
-      return
+    const loadUserData = async () => {
+      const userData = getUser()
+      if (!userData) {
+        router.push('/')
+        return
+      }
+
+      // Se não tem tenant, vamos buscar do backend
+      if (!userData.tenant) {
+        try {
+          const response = await apiRequest('/me')
+
+          // Atualizar localStorage com dados completos
+          localStorage.setItem('user', JSON.stringify(response))
+          setUser(response)
+        } catch (error) {
+          console.error('Error fetching user data:', error)
+          setUser(userData) // Usar dados do localStorage mesmo sem tenant
+        }
+      } else {
+        setUser(userData)
+      }
+
+      setLoading(false)
     }
-    setUser(userData)
-    setLoading(false)
+
+    loadUserData()
   }, [router])
 
   const handleLogout = async () => {
@@ -133,6 +155,68 @@ export default function Dashboard() {
             </div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Configurações</h3>
             <p className="text-gray-600 dark:text-gray-400 text-sm">Configure seu sistema de agendamento</p>
+          </div>
+        </div>
+
+        {/* Link da Loja */}
+        <div className="mt-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border border-transparent dark:border-gray-600">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Link da Sua Loja</h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                Compartilhe este link com seus clientes para que possam agendar serviços
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <div className="flex-1 bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+              <code className="text-sm text-gray-800 dark:text-gray-200 font-mono break-all">
+                {typeof window !== 'undefined' && user?.tenant?.slug
+                  ? `${window.location.origin}/${user.tenant.slug}/customer`
+                  : user?.tenant?.slug
+                    ? 'Carregando...'
+                    : 'Slug da loja não configurado'}
+              </code>
+            </div>
+            <button
+              onClick={() => {
+                if (user?.tenant?.slug) {
+                  const link = `${window.location.origin}/${user.tenant.slug}/customer`
+                  navigator.clipboard.writeText(link)
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 2000)
+                }
+              }}
+              disabled={!user?.tenant?.slug}
+              className={`px-4 py-2 rounded-lg transition font-medium flex items-center space-x-2 ${!user?.tenant?.slug
+                ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                : copied
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}
+            >
+              {copied ? (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Copiado!</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <span>Copiar</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 

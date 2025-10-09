@@ -92,6 +92,7 @@ export interface BookingRequest {
     customer_email: string
     customer_phone: string
     customer_notes?: string
+    accept_whatsapp_reminders?: boolean
 }
 
 export interface Booking {
@@ -100,6 +101,7 @@ export interface Booking {
     booking_date: string
     customer_name: string
     status: string
+    whatsapp_reminders?: boolean
 }
 
 // Buscar loja pelo slug
@@ -190,6 +192,41 @@ export const createBooking = async (slug: string, bookingData: BookingRequest): 
     if (!response.ok) {
         const errorData = await response.json()
         throw new Error(errorData.message || 'Erro ao criar agendamento')
+    }
+
+    return response.json()
+}
+
+// Cancelar agendamento
+export const cancelBooking = async (slug: string, bookingId: number): Promise<{ message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/public/store/${slug}/booking/${bookingId}/cancel`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+
+    if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Erro ao cancelar agendamento')
+    }
+
+    return response.json()
+}
+
+// Buscar agendamentos do cliente
+export const getCustomerBookings = async (slug: string, customerPhone: string): Promise<Booking[]> => {
+    const params = new URLSearchParams({
+        customer_phone: customerPhone
+    })
+
+    const response = await fetch(`${API_BASE_URL}/public/store/${slug}/bookings?${params}`)
+
+    if (!response.ok) {
+        if (response.status === 404) {
+            return []
+        }
+        throw new Error('Erro ao buscar agendamentos')
     }
 
     return response.json()

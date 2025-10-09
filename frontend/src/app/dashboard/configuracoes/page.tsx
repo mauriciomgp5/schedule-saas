@@ -103,14 +103,14 @@ export default function ConfiguracoesPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
                 <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
             <header className="bg-white dark:bg-gray-800 shadow-lg">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
                     <div className="flex items-center justify-between">
@@ -180,7 +180,7 @@ export default function ConfiguracoesPage() {
                                     min="1"
                                     value={settings.slot_duration}
                                     onChange={(e) => setSettings({ ...settings, slot_duration: parseInt(e.target.value) || 30 })}
-                                    className="form-input"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                                 />
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     Duração padrão de cada slot de agendamento
@@ -196,7 +196,7 @@ export default function ConfiguracoesPage() {
                                     min="0"
                                     value={settings.interval_between_slots}
                                     onChange={(e) => setSettings({ ...settings, interval_between_slots: parseInt(e.target.value) || 0 })}
-                                    className="form-input"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                                 />
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     Tempo de espera entre um agendamento e outro (0 = sem intervalo)
@@ -212,7 +212,7 @@ export default function ConfiguracoesPage() {
                                     min="1"
                                     value={settings.advance_booking_days}
                                     onChange={(e) => setSettings({ ...settings, advance_booking_days: parseInt(e.target.value) || 30 })}
-                                    className="form-input"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                                 />
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     Quantos dias no futuro os clientes podem agendar
@@ -228,7 +228,7 @@ export default function ConfiguracoesPage() {
                                     min="0"
                                     value={settings.min_booking_notice}
                                     onChange={(e) => setSettings({ ...settings, min_booking_notice: parseInt(e.target.value) || 60 })}
-                                    className="form-input"
+                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                                 />
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                     Tempo mínimo de antecedência para fazer um agendamento
@@ -276,7 +276,7 @@ export default function ConfiguracoesPage() {
                                         min="0"
                                         value={settings.cancellation_notice}
                                         onChange={(e) => setSettings({ ...settings, cancellation_notice: parseInt(e.target.value) || 24 })}
-                                        className="form-input"
+                                        className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-600 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
                                     />
                                 </div>
                             )}

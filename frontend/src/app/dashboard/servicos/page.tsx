@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { getUser } from "@/services/auth"
 import { getServices, createService, updateService, deleteService, Service } from "@/services/services"
+import { ThemeToggle } from "@/components/ThemeToggle"
 
 export default function ServicosPage() {
   const router = useRouter()
@@ -74,7 +75,8 @@ export default function ServicosPage() {
     if (service) {
       setEditingService(service)
       setFormData(service)
-      setPriceInput(service.price.toFixed(2).replace('.', ','))
+      const price = typeof service.price === 'string' ? parseFloat(service.price) : service.price
+      setPriceInput(price.toFixed(2).replace('.', ','))
     } else {
       setEditingService(null)
       setFormData({
@@ -124,11 +126,12 @@ export default function ServicosPage() {
     }
   }
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price: number | string) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
-    }).format(price)
+    }).format(numPrice)
   }
 
   if (loading) {
@@ -158,15 +161,18 @@ export default function ServicosPage() {
                 <p className="text-sm text-gray-600 dark:text-gray-400">Gerencie seus servicos</p>
               </div>
             </div>
-            <button
-              onClick={() => handleOpenModal()}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span>Novo Servico</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <ThemeToggle />
+              <button
+                onClick={() => handleOpenModal()}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span>Novo Servico</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>

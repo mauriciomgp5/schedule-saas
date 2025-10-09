@@ -6,7 +6,7 @@ export interface Service {
   category_id?: number | null
   name: string
   description?: string
-  price: number
+  price: number | string
   duration: number
   color?: string
   is_active?: boolean

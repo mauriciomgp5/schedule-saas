@@ -7,7 +7,10 @@ use App\Models\Tenant;
 use App\Models\Service;
 use App\Models\Availability;
 use App\Models\Category;
+use App\Models\Customer;
+use App\Models\Booking;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class PublicStoreController extends Controller
@@ -195,6 +198,14 @@ class PublicStoreController extends Controller
      */
     public function createBooking($slug, Request $request)
     {
+        // Log para debug
+        \Log::info('Creating booking', [
+            'slug' => $slug,
+            'service_id' => $request->service_id,
+            'customer_phone' => $request->customer_phone,
+            'booking_date' => $request->booking_date
+        ]);
+
         $tenant = Tenant::where('slug', $slug)
             ->where('is_active', true)
             ->first();
@@ -212,23 +223,29 @@ class PublicStoreController extends Controller
             'customer_email' => 'nullable|email|max:255',
             'customer_phone' => 'required|string|max:20',
             'customer_notes' => 'nullable|string',
+            'accept_whatsapp_reminders' => 'nullable|boolean',
         ]);
 
         // Validação adicional para agendamentos retroativos
         $bookingDateTime = Carbon::parse($request->booking_date);
         $now = Carbon::now();
 
-        if ($bookingDateTime->isPast()) {
-            return response()->json([
-                'message' => 'Não é possível agendar para uma data/hora no passado'
-            ], 422);
-        }
+        // Se for para um dia diferente (futuro), sempre permitir
+        if ($bookingDateTime->isFuture() && !$bookingDateTime->isSameDay($now)) {
+            // Agendamento para dia futuro - sempre válido
+        } else {
+            // Para o mesmo dia, verificar se é pelo menos 1 hora no futuro
+            $minutesDifference = $bookingDateTime->diffInMinutes($now, false);
 
-        // Verificar se o agendamento é pelo menos 1 hora no futuro
-        if ($bookingDateTime->diffInMinutes($now) < 60) {
-            return response()->json([
-                'message' => 'O agendamento deve ser feito com pelo menos 1 hora de antecedência'
-            ], 422);
+            if ($minutesDifference < 60) {
+                $currentTime = $now->format('H:i');
+                $bookingTime = $bookingDateTime->format('H:i');
+                $bookingDate = $bookingDateTime->format('d/m/Y');
+
+                return response()->json([
+                    'message' => "O agendamento deve ser feito com pelo menos 1 hora de antecedência. Horário atual: {$currentTime}, Agendamento solicitado: {$bookingTime} do dia {$bookingDate}"
+                ], 422);
+            }
         }
 
         $service = Service::where('id', $request->service_id)
@@ -242,17 +259,151 @@ class PublicStoreController extends Controller
             ], 404);
         }
 
-        // TODO: Implementar criação de agendamento
-        // Por enquanto, retornar sucesso simulado
+        // Buscar ou criar cliente (1 cliente por loja/tenant)
+        $customer = Customer::firstOrCreate(
+            [
+                'tenant_id' => $tenant->id,
+                'phone' => $request->customer_phone,
+            ],
+            [
+                'name' => $request->customer_name,
+                'email' => $request->customer_email,
+                'notes' => $request->customer_notes,
+                'accept_whatsapp_reminders' => $request->accept_whatsapp_reminders ?? false,
+            ]
+        );
+
+        // Se o cliente já existia, atualizar dados se necessário
+        if (!$customer->wasRecentlyCreated) {
+            $customer->update([
+                'name' => $request->customer_name,
+                'email' => $request->customer_email ?: $customer->email,
+                'notes' => $request->customer_notes ?: $customer->notes,
+                'accept_whatsapp_reminders' => $request->accept_whatsapp_reminders ?? $customer->accept_whatsapp_reminders,
+            ]);
+        }
+
+        // Criar agendamento real no banco
+        $bookingNumber = 'BK' . time() . rand(100, 999);
+
+        try {
+            $booking = Booking::create([
+                'tenant_id' => $tenant->id,
+                'service_id' => $service->id,
+                'user_id' => null, // Por enquanto null, pois customer não é user
+                'customer_id' => $customer->id,
+                'booking_number' => $bookingNumber,
+                'booking_date' => $bookingDateTime,
+                'duration' => $service->duration,
+                'price' => $service->price,
+                'status' => 'pending',
+                'customer_notes' => $request->customer_notes,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Error creating booking: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erro ao criar agendamento: ' . $e->getMessage()
+            ], 500);
+        }
+
+        $message = 'Agendamento criado com sucesso!';
+        if ($request->accept_whatsapp_reminders) {
+            $message .= ' Você receberá lembretes via WhatsApp antes do seu agendamento.';
+        }
+
         return response()->json([
-            'message' => 'Agendamento criado com sucesso!',
+            'message' => $message,
             'booking' => [
-                'id' => rand(1000, 9999),
+                'id' => $booking->id,
                 'service_name' => $service->name,
-                'booking_date' => $request->booking_date,
+                'booking_date' => $booking->booking_date->toISOString(),
                 'customer_name' => $request->customer_name,
-                'status' => 'pending'
+                'customer_id' => $customer->id,
+                'status' => $booking->status,
+                'whatsapp_reminders' => $request->accept_whatsapp_reminders ?? false
             ]
         ], 201);
+    }
+
+    /**
+     * Buscar agendamentos do cliente
+     */
+    public function getCustomerBookings(Request $request, $slug)
+    {
+        $tenant = Tenant::where('slug', $slug)->where('is_active', true)->first();
+
+        if (!$tenant) {
+            return response()->json([
+                'message' => 'Loja não encontrada'
+            ], 404);
+        }
+
+        $request->validate([
+            'customer_phone' => 'required|string'
+        ]);
+
+        // Buscar agendamentos reais do cliente
+        $customer = Customer::where('tenant_id', $tenant->id)
+            ->where('phone', $request->customer_phone)
+            ->first();
+
+        if (!$customer) {
+            return response()->json([]);
+        }
+
+        // Buscar agendamentos reais do cliente usando customer_id
+        $bookings = Booking::where('tenant_id', $tenant->id)
+            ->where('customer_id', $customer->id)
+            ->with(['service', 'customer'])
+            ->orderBy('booking_date', 'desc')
+            ->get()
+            ->map(function ($booking) {
+                return [
+                    'id' => $booking->id,
+                    'service_name' => $booking->service->name,
+                    'booking_date' => $booking->booking_date->toISOString(),
+                    'customer_name' => $booking->customer->name,
+                    'status' => $booking->status,
+                    'whatsapp_reminders' => $booking->customer->accept_whatsapp_reminders ?? false
+                ];
+            });
+
+        return response()->json($bookings);
+    }
+
+    /**
+     * Cancelar agendamento
+     */
+    public function cancelBooking(Request $request, $slug, $bookingId)
+    {
+        $tenant = Tenant::where('slug', $slug)->where('is_active', true)->first();
+
+        if (!$tenant) {
+            return response()->json([
+                'message' => 'Loja não encontrada'
+            ], 404);
+        }
+
+        // Buscar o agendamento
+        $booking = Booking::where('id', $bookingId)
+            ->where('tenant_id', $tenant->id)
+            ->first();
+
+        if (!$booking) {
+            return response()->json([
+                'message' => 'Agendamento não encontrado'
+            ], 404);
+        }
+
+        // Cancelar o agendamento
+        $booking->update([
+            'status' => 'cancelled',
+            'cancelled_at' => now(),
+            'cancellation_reason' => 'Cancelado pelo cliente'
+        ]);
+
+        return response()->json([
+            'message' => 'Agendamento cancelado com sucesso!'
+        ]);
     }
 }

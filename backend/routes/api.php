@@ -19,6 +19,8 @@ Route::prefix('public')->group(function () {
     Route::get('/store/{slug}/availability', [PublicStoreController::class, 'getStoreAvailability']);
     Route::get('/store/{slug}/slots', [PublicStoreController::class, 'getAvailableSlots']);
     Route::post('/store/{slug}/booking', [PublicStoreController::class, 'createBooking']);
+    Route::get('/store/{slug}/bookings', [PublicStoreController::class, 'getCustomerBookings']);
+    Route::post('/store/{slug}/booking/{bookingId}/cancel', [PublicStoreController::class, 'cancelBooking']);
 });
 
 // Rotas protegidas (com autenticação)
