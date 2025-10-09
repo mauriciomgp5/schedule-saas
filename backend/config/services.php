@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'twilio' => [
+        'sid' => env('TWILIO_ACCOUNT_SID'),
+        'token' => env('TWILIO_AUTH_TOKEN'),
+        'from_number' => env('TWILIO_FROM_NUMBER'),
+        'verify_service_sid' => env('TWILIO_VERIFY_SERVICE_SID'),
+    ],
+
 ];

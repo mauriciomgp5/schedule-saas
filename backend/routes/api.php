@@ -21,6 +21,10 @@ Route::prefix('public')->group(function () {
     Route::post('/store/{slug}/booking', [PublicStoreController::class, 'createBooking']);
     Route::get('/store/{slug}/bookings', [PublicStoreController::class, 'getCustomerBookings']);
     Route::post('/store/{slug}/booking/{bookingId}/cancel', [PublicStoreController::class, 'cancelBooking']);
+
+    // Rotas de autenticação via SMS
+    Route::post('/store/{slug}/send-sms', [PublicStoreController::class, 'sendSms']);
+    Route::post('/store/{slug}/verify-sms', [PublicStoreController::class, 'verifySms']);
 });
 
 // Rotas protegidas (com autenticação)

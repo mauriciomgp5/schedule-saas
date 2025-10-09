@@ -9,6 +9,7 @@ use App\Models\Availability;
 use App\Models\Category;
 use App\Models\Customer;
 use App\Models\Booking;
+use App\Services\SmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
@@ -199,7 +200,7 @@ class PublicStoreController extends Controller
     public function createBooking($slug, Request $request)
     {
         // Log para debug
-        \Log::info('Creating booking', [
+        Log::info('Creating booking', [
             'slug' => $slug,
             'service_id' => $request->service_id,
             'customer_phone' => $request->customer_phone,
@@ -300,7 +301,7 @@ class PublicStoreController extends Controller
                 'customer_notes' => $request->customer_notes,
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error creating booking: ' . $e->getMessage());
+            Log::error('Error creating booking: ' . $e->getMessage());
             return response()->json([
                 'message' => 'Erro ao criar agendamento: ' . $e->getMessage()
             ], 500);
@@ -404,6 +405,118 @@ class PublicStoreController extends Controller
 
         return response()->json([
             'message' => 'Agendamento cancelado com sucesso!'
+        ]);
+    }
+
+    /**
+     * Envia código SMS para verificação via Twilio Verify
+     */
+    public function sendSms(Request $request, $slug)
+    {
+        $tenant = Tenant::where('slug', $slug)->where('is_active', true)->first();
+
+        if (!$tenant) {
+            return response()->json([
+                'message' => 'Loja não encontrada'
+            ], 404);
+        }
+
+        $request->validate([
+            'phone' => 'required|string|min:10',
+            'name' => 'nullable|string|max:255',
+            'isLogin' => 'nullable|boolean'
+        ]);
+
+        $smsService = new SmsService();
+
+        // Verificar se o telefone é válido
+        if (!$smsService->isValidPhoneNumber($request->phone)) {
+            return response()->json([
+                'message' => 'Número de telefone inválido'
+            ], 422);
+        }
+
+        // Enviar código via Twilio Verify
+        $result = $smsService->sendVerificationCode($request->phone, $request->name);
+
+        if (!$result['success']) {
+            return response()->json([
+                'message' => $result['message']
+            ], 500);
+        }
+
+        $message = $request->isLogin
+            ? 'Código de verificação enviado para seu telefone'
+            : 'Código de verificação enviado para seu telefone';
+
+        return response()->json([
+            'message' => $message,
+            'phone' => $request->phone,
+            'status' => $result['status']
+        ]);
+    }
+
+    /**
+     * Verifica código SMS via Twilio Verify e autentica o cliente
+     */
+    public function verifySms(Request $request, $slug)
+    {
+        $tenant = Tenant::where('slug', $slug)->where('is_active', true)->first();
+
+        if (!$tenant) {
+            return response()->json([
+                'message' => 'Loja não encontrada'
+            ], 404);
+        }
+
+        $request->validate([
+            'phone' => 'required|string|min:10',
+            'smsCode' => 'required|string|size:6',
+            'name' => 'nullable|string|max:255'
+        ]);
+
+        $smsService = new SmsService();
+
+        // Verificar código via Twilio Verify
+        $result = $smsService->verifyCode($request->phone, $request->smsCode);
+
+        if (!$result['success'] || !$result['valid']) {
+            return response()->json([
+                'message' => $result['message']
+            ], 422);
+        }
+
+        // Buscar ou criar cliente
+        $customer = Customer::firstOrCreate(
+            [
+                'tenant_id' => $tenant->id,
+                'phone' => $request->phone,
+            ],
+            [
+                'name' => $request->name ?: 'Cliente',
+                'email' => null,
+                'notes' => null,
+                'accept_whatsapp_reminders' => true,
+                'sms_code' => $request->smsCode, // Salvar código como senha
+            ]
+        );
+
+        // Se o cliente já existia, atualizar dados se necessário
+        if (!$customer->wasRecentlyCreated) {
+            $customer->update([
+                'name' => $request->name ?: $customer->name,
+                'sms_code' => $request->smsCode, // Atualizar senha
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Verificação realizada com sucesso!',
+            'customer' => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'phone' => $customer->phone,
+                'sms_code' => $request->smsCode
+            ]
         ]);
     }
 }

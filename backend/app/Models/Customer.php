@@ -17,6 +17,7 @@ class Customer extends Model
         'phone',
         'notes',
         'accept_whatsapp_reminders',
+        'sms_code',
     ];
 
     public function tenant(): BelongsTo

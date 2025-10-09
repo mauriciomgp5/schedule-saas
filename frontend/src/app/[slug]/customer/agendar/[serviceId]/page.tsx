@@ -24,6 +24,8 @@ export default function BookingPage() {
     const [loadingSlots, setLoadingSlots] = useState(false)
     const [submitting, setSubmitting] = useState(false)
     const [success, setSuccess] = useState(false)
+    const [showAuthModal, setShowAuthModal] = useState(false)
+    const [isAuthenticated, setIsAuthenticated] = useState(false)
 
     const [formData, setFormData] = useState({
         customer_name: '',
@@ -61,7 +63,7 @@ export default function BookingPage() {
         const customerAuthenticated = localStorage.getItem('customerAuthenticated')
 
         if (!customerPhone || !customerAuthenticated) {
-            router.push(`/${slug}/customer/login`)
+            setShowAuthModal(true)
             return
         }
 
@@ -75,6 +77,7 @@ export default function BookingPage() {
             }))
         }
 
+        setIsAuthenticated(true)
         loadStoreAndService()
     }, [slug, serviceId, router])
 
@@ -124,8 +127,24 @@ export default function BookingPage() {
         }
     }
 
+    const handleAuthSuccess = (customerData: { name: string; phone: string }) => {
+        setFormData(prev => ({
+            ...prev,
+            customer_name: customerData.name,
+            customer_phone: customerData.phone
+        }))
+        setIsAuthenticated(true)
+        setShowAuthModal(false)
+        loadStoreAndService()
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        if (!isAuthenticated) {
+            setShowAuthModal(true)
+            return
+        }
 
         if (!selectedDate || !selectedTime) {
             setError('Por favor, selecione uma data e horário')
@@ -464,12 +483,19 @@ export default function BookingPage() {
                                 disabled={submitting || !selectedDate || !selectedTime}
                                 className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition font-medium"
                             >
-                                {submitting ? 'Agendando...' : 'Confirmar Agendamento'}
+                                {submitting ? 'Agendando...' : !isAuthenticated ? 'Fazer Login para Agendar' : 'Confirmar Agendamento'}
                             </button>
                         </form>
                     </div>
                 </div>
             </main>
+
+            <AuthModal
+                isOpen={showAuthModal}
+                onClose={() => setShowAuthModal(false)}
+                onSuccess={handleAuthSuccess}
+                slug={slug}
+            />
         </div>
     )
 }
