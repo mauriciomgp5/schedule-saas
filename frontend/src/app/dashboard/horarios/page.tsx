@@ -29,6 +29,7 @@ export default function HorariosPage() {
     type: 'regular',
     is_available: true,
   })
+  const [error, setError] = useState<string>('')
 
   useEffect(() => {
     const userData = getUser()
@@ -52,6 +53,7 @@ export default function HorariosPage() {
   }
 
   const handleOpenModal = (availability?: Availability) => {
+    setError('') // Limpar erro ao abrir modal
     if (availability) {
       setEditingAvailability(availability)
       setFormData(availability)
@@ -71,10 +73,44 @@ export default function HorariosPage() {
   const handleCloseModal = () => {
     setShowModal(false)
     setEditingAvailability(null)
+    setError('')
+  }
+
+  // Função para verificar conflitos de horário no frontend
+  const checkTimeConflict = (newAvailability: Availability, excludeId?: number) => {
+    return availabilities.some(avail => {
+      if (excludeId && avail.id === excludeId) return false
+      if (avail.day_of_week !== newAvailability.day_of_week) return false
+      if (avail.service_id !== newAvailability.service_id) return false
+
+      // Verificar se há sobreposição de horários
+      const newStart = newAvailability.start_time
+      const newEnd = newAvailability.end_time
+      const existingStart = avail.start_time
+      const existingEnd = avail.end_time
+
+      // Verificar se o novo horário está dentro do existente
+      if (newStart >= existingStart && newStart < existingEnd) return true
+      // Verificar se o novo horário contém o existente
+      if (newStart <= existingStart && newEnd > existingStart) return true
+      // Verificar se são exatamente iguais
+      if (newStart === existingStart && newEnd === existingEnd) return true
+
+      return false
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
+
+    // Verificar conflito no frontend antes de enviar
+    const hasConflict = checkTimeConflict(formData, editingAvailability?.id)
+    if (hasConflict) {
+      setError('Já existe um horário configurado para este período no mesmo dia. Por favor, escolha um horário diferente.')
+      return
+    }
+
     try {
       if (editingAvailability) {
         await updateAvailability(editingAvailability.id!, formData)
@@ -84,7 +120,19 @@ export default function HorariosPage() {
       handleCloseModal()
       loadAvailabilities()
     } catch (error: any) {
-      alert(error.message || 'Erro ao salvar horario')
+      console.error('Erro ao salvar horário:', error)
+
+      // Verificar se é um erro de conflito de horário
+      if (error.response?.status === 422 && error.response?.data?.message) {
+        const errorData = error.response.data
+        if (errorData.conflicting_time) {
+          setError(`${errorData.message}. Horário conflitante: ${errorData.conflicting_time}`)
+        } else {
+          setError(errorData.message)
+        }
+      } else {
+        setError(error.message || 'Erro ao salvar horário')
+      }
     }
   }
 
@@ -236,6 +284,21 @@ export default function HorariosPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {error && (
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Dia da Semana</label>
                 <select

@@ -58,6 +58,34 @@ class AvailabilityController extends Controller
             }
         }
 
+        // Verificar se já existe um horário conflitante no mesmo dia
+        $conflictingAvailability = Availability::where('tenant_id', $request->user()->tenant_id)
+            ->where('day_of_week', $request->day_of_week)
+            ->where('service_id', $request->service_id) // Mesmo serviço ou ambos null
+            ->where(function ($query) use ($request) {
+                $query->where(function ($q) use ($request) {
+                    // Verifica se o novo horário está dentro de um horário existente
+                    $q->where('start_time', '<=', $request->start_time)
+                        ->where('end_time', '>', $request->start_time);
+                })->orWhere(function ($q) use ($request) {
+                    // Verifica se o novo horário contém um horário existente
+                    $q->where('start_time', '>=', $request->start_time)
+                        ->where('start_time', '<', $request->end_time);
+                })->orWhere(function ($q) use ($request) {
+                    // Verifica se o novo horário é exatamente igual
+                    $q->where('start_time', $request->start_time)
+                        ->where('end_time', $request->end_time);
+                });
+            })
+            ->first();
+
+        if ($conflictingAvailability) {
+            return response()->json([
+                'message' => 'Já existe um horário configurado para este período no mesmo dia',
+                'conflicting_time' => $conflictingAvailability->start_time . ' - ' . $conflictingAvailability->end_time
+            ], 422);
+        }
+
         $availability = Availability::create([
             'tenant_id' => $request->user()->tenant_id,
             'service_id' => $request->service_id,
@@ -120,6 +148,40 @@ class AvailabilityController extends Controller
                     'message' => 'Serviço não encontrado'
                 ], 404);
             }
+        }
+
+        // Verificar se já existe um horário conflitante no mesmo dia (excluindo o atual)
+        $dayOfWeek = $request->has('day_of_week') ? $request->day_of_week : $availability->day_of_week;
+        $startTime = $request->has('start_time') ? $request->start_time : $availability->start_time;
+        $endTime = $request->has('end_time') ? $request->end_time : $availability->end_time;
+        $serviceId = $request->has('service_id') ? $request->service_id : $availability->service_id;
+
+        $conflictingAvailability = Availability::where('tenant_id', $request->user()->tenant_id)
+            ->where('id', '!=', $id) // Excluir o horário atual
+            ->where('day_of_week', $dayOfWeek)
+            ->where('service_id', $serviceId) // Mesmo serviço ou ambos null
+            ->where(function ($query) use ($startTime, $endTime) {
+                $query->where(function ($q) use ($startTime, $endTime) {
+                    // Verifica se o novo horário está dentro de um horário existente
+                    $q->where('start_time', '<=', $startTime)
+                        ->where('end_time', '>', $startTime);
+                })->orWhere(function ($q) use ($startTime, $endTime) {
+                    // Verifica se o novo horário contém um horário existente
+                    $q->where('start_time', '>=', $startTime)
+                        ->where('start_time', '<', $endTime);
+                })->orWhere(function ($q) use ($startTime, $endTime) {
+                    // Verifica se o novo horário é exatamente igual
+                    $q->where('start_time', $startTime)
+                        ->where('end_time', $endTime);
+                });
+            })
+            ->first();
+
+        if ($conflictingAvailability) {
+            return response()->json([
+                'message' => 'Já existe um horário configurado para este período no mesmo dia',
+                'conflicting_time' => $conflictingAvailability->start_time . ' - ' . $conflictingAvailability->end_time
+            ], 422);
         }
 
         $availability->update($request->all());
