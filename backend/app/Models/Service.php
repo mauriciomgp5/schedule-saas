@@ -20,6 +20,7 @@ class Service extends Model
         'price',
         'duration',
         'color',
+        'image',
         'is_active',
         'requires_approval',
         'max_bookings_per_slot',

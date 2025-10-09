@@ -7,26 +7,6 @@ import { ThemeToggle } from "@/components/ThemeToggle"
 // Mock data para demonstração - em produção isso viria de uma API
 const mockStores = [
     {
-        id: 1,
-        name: "Salão Beleza & Estilo",
-        slug: "salao-beleza-estilo",
-        description: "Salão completo com cortes, penteados, coloração e tratamentos capilares",
-        address: "Rua das Flores, 123",
-        city: "São Paulo",
-        state: "SP",
-        logo: "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=100&h=100&fit=crop&crop=face"
-    },
-    {
-        id: 2,
-        name: "Barbearia Moderna",
-        slug: "barbearia-moderna",
-        description: "Barbearia tradicional com serviços modernos de corte e barba",
-        address: "Av. Paulista, 456",
-        city: "São Paulo",
-        state: "SP",
-        logo: "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=100&h=100&fit=crop&crop=face"
-    },
-    {
         id: 3,
         name: "Spa Relaxamento",
         slug: "spa-relaxamento",
@@ -68,7 +48,7 @@ export default function LojasPage() {
                     {stores.map(store => (
                         <Link
                             key={store.id}
-                            href={`/${store.slug}/customer`}
+                            href={`/${store.slug}`}
                             className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition group"
                         >
                             <div className="p-6">

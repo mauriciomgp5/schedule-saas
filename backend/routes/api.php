@@ -25,6 +25,10 @@ Route::prefix('public')->group(function () {
     // Rotas de autenticação via SMS
     Route::post('/store/{slug}/send-sms', [PublicStoreController::class, 'sendSms']);
     Route::post('/store/{slug}/verify-sms', [PublicStoreController::class, 'verifySms']);
+
+    // Rotas de autenticação com telefone + senha
+    Route::post('/store/{slug}/login', [PublicStoreController::class, 'login']);
+    Route::post('/store/{slug}/register', [PublicStoreController::class, 'register']);
 });
 
 // Rotas protegidas (com autenticação)

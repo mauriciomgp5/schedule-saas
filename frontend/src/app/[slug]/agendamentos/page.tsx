@@ -38,7 +38,7 @@ export default function MeusAgendamentos() {
         const customerAuthenticated = localStorage.getItem('customerAuthenticated')
 
         if (!customerPhone || !customerAuthenticated) {
-            router.push(`/${slug}/customer/login`)
+            router.push(`/${slug}`)
             return
         }
 
@@ -232,7 +232,7 @@ export default function MeusAgendamentos() {
                 {/* Botão Voltar */}
                 <div className="mb-6">
                     <button
-                        onClick={() => router.push(`/${slug}/customer`)}
+                        onClick={() => router.push(`/${slug}`)}
                         className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                     >
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -296,7 +296,7 @@ export default function MeusAgendamentos() {
                                 {error.includes('Telefone do cliente não encontrado') && (
                                     <div className="mt-3">
                                         <Link
-                                            href={`/${slug}/customer`}
+                                            href={`/${slug}`}
                                             className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                         >
                                             <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -336,7 +336,7 @@ export default function MeusAgendamentos() {
                             </p>
                             <div className="mt-6">
                                 <button
-                                    onClick={() => router.push(`/${slug}/customer`)}
+                                    onClick={() => router.push(`/${slug}`)}
                                     className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                 >
                                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

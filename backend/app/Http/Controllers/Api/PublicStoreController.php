@@ -200,11 +200,12 @@ class PublicStoreController extends Controller
     public function createBooking($slug, Request $request)
     {
         // Log para debug
-        Log::info('Creating booking', [
+        Log::info('Creating booking - METHOD CALLED', [
             'slug' => $slug,
             'service_id' => $request->service_id,
             'customer_phone' => $request->customer_phone,
-            'booking_date' => $request->booking_date
+            'booking_date' => $request->booking_date,
+            'all_data' => $request->all()
         ]);
 
         $tenant = Tenant::where('slug', $slug)
@@ -219,16 +220,17 @@ class PublicStoreController extends Controller
 
         $request->validate([
             'service_id' => 'required|exists:services,id',
-            'booking_date' => 'required|date|after:now',
+            'date' => 'required|date',
+            'time' => 'required|date_format:H:i',
             'customer_name' => 'required|string|max:255',
             'customer_email' => 'nullable|email|max:255',
             'customer_phone' => 'required|string|max:20',
-            'customer_notes' => 'nullable|string',
+            'notes' => 'nullable|string',
             'accept_whatsapp_reminders' => 'nullable|boolean',
         ]);
 
-        // Validação adicional para agendamentos retroativos
-        $bookingDateTime = Carbon::parse($request->booking_date);
+        // Combinar data e hora
+        $bookingDateTime = Carbon::parse($request->date . ' ' . $request->time);
         $now = Carbon::now();
 
         // Se for para um dia diferente (futuro), sempre permitir
@@ -269,7 +271,7 @@ class PublicStoreController extends Controller
             [
                 'name' => $request->customer_name,
                 'email' => $request->customer_email,
-                'notes' => $request->customer_notes,
+                'notes' => $request->notes,
                 'accept_whatsapp_reminders' => $request->accept_whatsapp_reminders ?? false,
             ]
         );
@@ -279,7 +281,7 @@ class PublicStoreController extends Controller
             $customer->update([
                 'name' => $request->customer_name,
                 'email' => $request->customer_email ?: $customer->email,
-                'notes' => $request->customer_notes ?: $customer->notes,
+                'notes' => $request->notes ?: $customer->notes,
                 'accept_whatsapp_reminders' => $request->accept_whatsapp_reminders ?? $customer->accept_whatsapp_reminders,
             ]);
         }
@@ -516,6 +518,71 @@ class PublicStoreController extends Controller
                 'name' => $customer->name,
                 'phone' => $customer->phone,
                 'sms_code' => $request->smsCode
+            ]
+        ]);
+    }
+
+    public function login(Request $request, $slug)
+    {
+        $tenant = Tenant::where('slug', $slug)->first();
+        if (!$tenant) {
+            return response()->json(['message' => 'Loja não encontrada'], 404);
+        }
+
+        $request->validate([
+            'phone' => 'required|string',
+            'password' => 'required|string|min:6'
+        ]);
+
+        $customer = Customer::where('tenant_id', $tenant->id)
+            ->where('phone', $request->phone)
+            ->first();
+
+        if (!$customer) {
+            return response()->json(['message' => 'Telefone não encontrado'], 404);
+        }
+
+        // Verificar senha (comparar com sms_code)
+        if ($customer->sms_code !== $request->password) {
+            return response()->json(['message' => 'Senha incorreta'], 401);
+        }
+
+        return response()->json([
+            'message' => 'Login realizado com sucesso!',
+            'customer' => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'phone' => $customer->phone
+            ]
+        ]);
+    }
+
+    public function register(Request $request, $slug)
+    {
+        $tenant = Tenant::where('slug', $slug)->first();
+        if (!$tenant) {
+            return response()->json(['message' => 'Loja não encontrada'], 404);
+        }
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'required|string|unique:customers,phone,NULL,id,tenant_id,' . $tenant->id,
+            'password' => 'required|string|min:6'
+        ]);
+
+        $customer = Customer::create([
+            'tenant_id' => $tenant->id,
+            'name' => $request->name,
+            'phone' => $request->phone,
+            'sms_code' => $request->password, // Usar senha como sms_code
+        ]);
+
+        return response()->json([
+            'message' => 'Conta criada com sucesso!',
+            'customer' => [
+                'id' => $customer->id,
+                'name' => $customer->name,
+                'phone' => $customer->phone
             ]
         ]);
     }

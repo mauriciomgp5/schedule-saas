@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
 
 export interface Store {
     id: number
@@ -49,6 +49,7 @@ export interface Service {
     price: number
     duration: number
     color: string
+    image?: string
     is_active: boolean
     requires_approval: boolean
     max_bookings_per_slot: number

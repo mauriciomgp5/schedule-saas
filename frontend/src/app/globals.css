@@ -16,3 +16,87 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Animações para os cards de serviços */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Utilitário para line-clamp */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Animações para texto expansível */
+@keyframes expandText {
+  from {
+    max-height: 4.5rem;
+  }
+
+  to {
+    max-height: 20rem;
+  }
+}
+
+@keyframes collapseText {
+  from {
+    max-height: 20rem;
+  }
+
+  to {
+    max-height: 4.5rem;
+  }
+}
+
+.expand-text {
+  animation: expandText 0.5s ease-in-out forwards;
+}
+
+.collapse-text {
+  animation: collapseText 0.5s ease-in-out forwards;
+}
+
+/* Efeito de brilho para botões */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.shimmer-effect::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: shimmer 2s infinite;
+}

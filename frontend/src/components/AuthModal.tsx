@@ -12,16 +12,15 @@ interface AuthModalProps {
 
 export function AuthModal({ isOpen, onClose, onSuccess, slug }: AuthModalProps) {
     const { getInputClasses, getLabelClasses, getCardClasses } = useThemeClasses()
-    
-    const [step, setStep] = useState<'login' | 'register' | 'verify'>('login')
+
+    const [isLogin, setIsLogin] = useState(true)
     const [formData, setFormData] = useState({
         name: '',
         phone: '',
-        smsCode: ''
+        password: ''
     })
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
-    const [countdown, setCountdown] = useState(0)
 
     // Função para formatar telefone
     const formatPhone = (value: string) => {
@@ -42,299 +41,200 @@ export function AuthModal({ isOpen, onClose, onSuccess, slug }: AuthModalProps) 
         setFormData({ ...formData, phone: formatted })
     }
 
-    const startCountdown = () => {
-        setCountdown(60)
-        const timer = setInterval(() => {
-            setCountdown((prev) => {
-                if (prev <= 1) {
-                    clearInterval(timer)
-                    return 0
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setLoading(true)
+        setError('')
+
+        try {
+            if (isLogin) {
+                // Login com telefone e senha
+                const response = await fetch(`http://localhost:8080/api/public/store/${slug}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        phone: formData.phone.replace(/\D/g, ''),
+                        password: formData.password
+                    })
+                })
+
+                const data = await response.json()
+
+                if (response.ok) {
+                    // Salvar dados no localStorage
+                    localStorage.setItem('customerName', data.customer.name)
+                    localStorage.setItem('customerPhone', data.customer.phone)
+                    localStorage.setItem('customerAuthenticated', 'true')
+
+                    onSuccess({
+                        name: data.customer.name,
+                        phone: data.customer.phone
+                    })
+                } else {
+                    setError(data.message || 'Erro ao fazer login')
                 }
-                return prev - 1
-            })
-        }, 1000)
-    }
-
-    const sendSMS = async () => {
-        if (!formData.phone || formData.phone.length < 14) {
-            setError('Por favor, digite um telefone válido')
-            return
-        }
-
-        setLoading(true)
-        setError('')
-
-        try {
-            const response = await fetch(`/api/stores/${slug}/send-sms`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    phone: formData.phone,
-                    name: formData.name
+            } else {
+                // Registro com telefone e senha
+                const response = await fetch(`http://localhost:8080/api/public/store/${slug}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: formData.name,
+                        phone: formData.phone.replace(/\D/g, ''),
+                        password: formData.password
+                    })
                 })
-            })
 
-            const data = await response.json()
+                const data = await response.json()
 
-            if (!response.ok) {
-                throw new Error(data.message || 'Erro ao enviar SMS')
+                if (response.ok) {
+                    // Salvar dados no localStorage
+                    localStorage.setItem('customerName', data.customer.name)
+                    localStorage.setItem('customerPhone', data.customer.phone)
+                    localStorage.setItem('customerAuthenticated', 'true')
+
+                    onSuccess({
+                        name: data.customer.name,
+                        phone: data.customer.phone
+                    })
+                } else {
+                    setError(data.message || 'Erro ao criar conta')
+                }
             }
-
-            setStep('verify')
-            startCountdown()
-        } catch (error: any) {
-            setError(error.message)
+        } catch (error) {
+            console.error('Erro:', error)
+            setError('Erro de conexão. Tente novamente.')
         } finally {
             setLoading(false)
         }
     }
 
-    const verifySMS = async () => {
-        if (!formData.smsCode || formData.smsCode.length !== 6) {
-            setError('Por favor, digite o código de 6 dígitos')
-            return
-        }
-
-        setLoading(true)
+    const resetForm = () => {
+        setFormData({ name: '', phone: '', password: '' })
         setError('')
-
-        try {
-            const response = await fetch(`/api/stores/${slug}/verify-sms`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    phone: formData.phone,
-                    smsCode: formData.smsCode,
-                    name: formData.name
-                })
-            })
-
-            const data = await response.json()
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Código inválido')
-            }
-
-            // Salvar dados no localStorage
-            localStorage.setItem('customerPhone', formData.phone)
-            localStorage.setItem('customerName', formData.name)
-            localStorage.setItem('customerAuthenticated', 'true')
-            localStorage.setItem('customerSmsCode', formData.smsCode)
-
-            onSuccess({ name: formData.name, phone: formData.phone })
-            onClose()
-        } catch (error: any) {
-            setError(error.message)
-        } finally {
-            setLoading(false)
-        }
     }
 
-    const handleLogin = async () => {
-        if (!formData.phone || formData.phone.length < 14) {
-            setError('Por favor, digite um telefone válido')
-            return
-        }
-
-        setLoading(true)
-        setError('')
-
-        try {
-            const response = await fetch(`/api/stores/${slug}/send-sms`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    phone: formData.phone,
-                    isLogin: true
-                })
-            })
-
-            const data = await response.json()
-
-            if (!response.ok) {
-                throw new Error(data.message || 'Erro ao enviar SMS')
-            }
-
-            setStep('verify')
-            startCountdown()
-        } catch (error: any) {
-            setError(error.message)
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const resendSMS = async () => {
-        if (countdown > 0) return
-        await sendSMS()
+    const toggleMode = () => {
+        setIsLogin(!isLogin)
+        resetForm()
     }
 
     if (!isOpen) return null
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className={`${getCardClasses()} max-w-md w-full max-h-[90vh] overflow-y-auto`}>
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                        {step === 'login' && 'Entrar'}
-                        {step === 'register' && 'Criar Conta'}
-                        {step === 'verify' && 'Verificar Código'}
-                    </h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+            <div className={`${getCardClasses()} max-w-md w-full`}>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                            {isLogin ? 'Entrar' : 'Criar Conta'}
+                        </h2>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {isLogin ? 'Digite seu telefone e senha' : 'Preencha os dados para criar sua conta'}
+                        </p>
+                    </div>
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
                     </button>
                 </div>
 
-                {error && (
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
-                        <div className="flex">
-                            <div className="flex-shrink-0">
-                                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {error && (
+                        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                            <div className="flex">
+                                <svg className="w-5 h-5 text-red-400 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                            </div>
-                            <div className="ml-3">
-                                <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+                                <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
 
-                {step === 'login' && (
-                    <div className="space-y-4">
-                        <div>
-                            <label className={getLabelClasses()}>Telefone</label>
-                            <input
-                                type="tel"
-                                value={formData.phone}
-                                onChange={(e) => handlePhoneChange(e.target.value)}
-                                className={getInputClasses()}
-                                placeholder="(11) 99999-9999"
-                            />
-                        </div>
-
-                        <div className="flex space-x-3">
-                            <button
-                                type="button"
-                                onClick={handleLogin}
-                                disabled={loading}
-                                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition font-medium"
-                            >
-                                {loading ? 'Enviando...' : 'Enviar Código'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setStep('register')}
-                                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition font-medium"
-                            >
-                                Criar Conta
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {step === 'register' && (
-                    <div className="space-y-4">
+                    {/* Nome (apenas no registro) */}
+                    {!isLogin && (
                         <div>
                             <label className={getLabelClasses()}>Nome Completo</label>
                             <input
                                 type="text"
+                                required={!isLogin}
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 className={getInputClasses()}
                                 placeholder="Seu nome completo"
                             />
                         </div>
+                    )}
 
-                        <div>
-                            <label className={getLabelClasses()}>Telefone</label>
-                            <input
-                                type="tel"
-                                value={formData.phone}
-                                onChange={(e) => handlePhoneChange(e.target.value)}
-                                className={getInputClasses()}
-                                placeholder="(11) 99999-9999"
-                            />
-                        </div>
-
-                        <div className="flex space-x-3">
-                            <button
-                                type="button"
-                                onClick={sendSMS}
-                                disabled={loading}
-                                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition font-medium"
-                            >
-                                {loading ? 'Enviando...' : 'Enviar Código'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setStep('login')}
-                                className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition font-medium"
-                            >
-                                Já tenho conta
-                            </button>
-                        </div>
+                    {/* Telefone */}
+                    <div>
+                        <label className={getLabelClasses()}>Telefone</label>
+                        <input
+                            type="tel"
+                            required
+                            value={formData.phone}
+                            onChange={(e) => handlePhoneChange(e.target.value)}
+                            className={getInputClasses()}
+                            placeholder="(11) 99999-9999"
+                            maxLength={15}
+                        />
                     </div>
-                )}
 
-                {step === 'verify' && (
-                    <div className="space-y-4">
-                        <div className="text-center">
-                            <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                </svg>
-                            </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                                Enviamos um código de 6 dígitos para o número<br />
-                                <strong>{formData.phone}</strong>
-                            </p>
-                        </div>
+                    {/* Senha */}
+                    <div>
+                        <label className={getLabelClasses()}>Senha</label>
+                        <input
+                            type="password"
+                            required
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            className={getInputClasses()}
+                            placeholder={isLogin ? "Sua senha" : "Crie uma senha (mín. 6 caracteres)"}
+                            minLength={6}
+                        />
+                    </div>
 
-                        <div>
-                            <label className={getLabelClasses()}>Código SMS</label>
-                            <input
-                                type="text"
-                                value={formData.smsCode}
-                                onChange={(e) => setFormData({ ...formData, smsCode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
-                                className={getInputClasses()}
-                                placeholder="123456"
-                                maxLength={6}
-                            />
-                        </div>
+                    {/* Botão Submit */}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition font-medium"
+                    >
+                        {loading ? 'Processando...' : (isLogin ? 'Entrar' : 'Criar Conta')}
+                    </button>
+                </form>
 
+                {/* Toggle entre Login/Registro */}
+                <div className="mt-6 text-center">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
                         <button
                             type="button"
-                            onClick={verifySMS}
-                            disabled={loading || formData.smsCode.length !== 6}
-                            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg transition font-medium"
+                            onClick={toggleMode}
+                            className="ml-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
                         >
-                            {loading ? 'Verificando...' : 'Verificar Código'}
+                            {isLogin ? 'Criar conta' : 'Fazer login'}
                         </button>
+                    </p>
+                </div>
 
-                        <div className="text-center">
-                            <button
-                                type="button"
-                                onClick={resendSMS}
-                                disabled={countdown > 0}
-                                className="text-sm text-blue-600 hover:text-blue-700 disabled:text-gray-400"
-                            >
-                                {countdown > 0 ? `Reenviar em ${countdown}s` : 'Reenviar código'}
-                            </button>
-                        </div>
-                    </div>
-                )}
+                {/* Info adicional */}
+                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <p className="text-xs text-blue-700 dark:text-blue-300">
+                        💡 <strong>Dica:</strong> Use o mesmo telefone que você usou para criar a conta.
+                        A senha é a que você definiu no cadastro.
+                    </p>
+                </div>
             </div>
         </div>
     )

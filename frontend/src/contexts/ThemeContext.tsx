@@ -22,16 +22,18 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
 
     // Carregar tema do localStorage ou preferência do sistema
     useEffect(() => {
-        const savedTheme = localStorage.getItem('theme') as Theme
-        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        if (typeof window !== 'undefined') {
+            const savedTheme = localStorage.getItem('theme') as Theme
+            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 
-        setThemeState(savedTheme || systemTheme)
+            setThemeState(savedTheme || systemTheme)
+        }
         setMounted(true)
     }, [])
 
     // Aplicar tema no documento
     useEffect(() => {
-        if (mounted) {
+        if (mounted && typeof window !== 'undefined') {
             const root = document.documentElement
 
             if (theme === 'dark') {
