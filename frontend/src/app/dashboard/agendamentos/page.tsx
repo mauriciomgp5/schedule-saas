@@ -13,6 +13,7 @@ import {
 } from "@/services/bookings"
 import { getServices, Service } from "@/services/services"
 import { ThemeToggle } from "@/components/ThemeToggle"
+import { ConfirmModal } from "@/components/ConfirmModal"
 import CalendarView from "@/components/CalendarView"
 
 export default function AgendamentosPage() {
@@ -24,6 +25,8 @@ export default function AgendamentosPage() {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
+  const [showCompleteModal, setShowCompleteModal] = useState(false)
   const [cancellationReason, setCancellationReason] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -101,20 +104,36 @@ export default function AgendamentosPage() {
     }
   }
 
-  const handleComplete = async (booking: Booking) => {
-    if (!confirm('Marcar este agendamento como concluído?')) return
+  const handleCompleteClick = (booking: Booking) => {
+    setSelectedBooking(booking)
+    setShowCompleteModal(true)
+  }
+
+  const handleCompleteConfirm = async () => {
+    if (!selectedBooking) return
 
     try {
-      await completeBooking(booking.id)
+      await completeBooking(selectedBooking.id)
+      setShowCompleteModal(false)
+      setSelectedBooking(null)
       loadBookings()
     } catch (error: any) {
       alert(error.message || 'Erro ao concluir agendamento')
     }
   }
 
-  const handleConfirm = async (booking: Booking) => {
+  const handleConfirmClick = (booking: Booking) => {
+    setSelectedBooking(booking)
+    setShowConfirmModal(true)
+  }
+
+  const handleConfirmConfirm = async () => {
+    if (!selectedBooking) return
+
     try {
-      await confirmBooking(booking.id)
+      await confirmBooking(selectedBooking.id)
+      setShowConfirmModal(false)
+      setSelectedBooking(null)
       loadBookings()
     } catch (error: any) {
       alert(error.message || 'Erro ao confirmar agendamento')
@@ -380,7 +399,7 @@ export default function AgendamentosPage() {
 
                             {booking.status === 'pending' && (
                               <button
-                                onClick={() => handleConfirm(booking)}
+                                onClick={() => handleConfirmClick(booking)}
                                 className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
                                 title="Confirmar"
                               >
@@ -392,7 +411,7 @@ export default function AgendamentosPage() {
 
                             {(booking.status === 'confirmed' || booking.status === 'pending') && (
                               <button
-                                onClick={() => handleComplete(booking)}
+                                onClick={() => handleCompleteClick(booking)}
                                 className="text-purple-600 hover:text-purple-900 dark:text-purple-400 dark:hover:text-purple-300"
                                 title="Marcar como concluído"
                               >
@@ -486,7 +505,7 @@ export default function AgendamentosPage() {
 
                     {booking.status === 'pending' && (
                       <button
-                        onClick={() => handleConfirm(booking)}
+                        onClick={() => handleConfirmClick(booking)}
                         className="flex-1 min-w-[120px] px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition text-sm font-medium flex items-center justify-center"
                       >
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -498,7 +517,7 @@ export default function AgendamentosPage() {
 
                     {(booking.status === 'confirmed' || booking.status === 'pending') && (
                       <button
-                        onClick={() => handleComplete(booking)}
+                        onClick={() => handleCompleteClick(booking)}
                         className="flex-1 min-w-[120px] px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition text-sm font-medium flex items-center justify-center"
                       >
                         <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -678,6 +697,28 @@ export default function AgendamentosPage() {
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação de Agendamento */}
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleConfirmConfirm}
+        title="Confirmar Agendamento"
+        message={`Deseja confirmar o agendamento de ${selectedBooking?.customer?.name || 'este cliente'}?`}
+        confirmText="Confirmar"
+        type="info"
+      />
+
+      {/* Modal de Conclusão de Agendamento */}
+      <ConfirmModal
+        isOpen={showCompleteModal}
+        onClose={() => setShowCompleteModal(false)}
+        onConfirm={handleCompleteConfirm}
+        title="Marcar como Concluído"
+        message={`Marcar o agendamento de ${selectedBooking?.customer?.name || 'este cliente'} como concluído?`}
+        confirmText="Marcar como Concluído"
+        type="info"
+      />
 
       {/* Modal de Cancelamento */}
       {showCancelModal && selectedBooking && (
