@@ -125,14 +125,19 @@ export default function Dashboard() {
             <p className="text-gray-600 dark:text-gray-400 text-sm">Configure sua disponibilidade</p>
           </div>
 
-          <div className="bg-white dark:bg-gray-700 rounded-xl shadow-lg p-6 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer border border-transparent dark:border-gray-600">
+          <div
+            onClick={() => router.push('/dashboard/agendamentos')}
+            className="bg-white dark:bg-gray-700 rounded-xl shadow-lg p-6 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer border border-transparent dark:border-gray-600"
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg flex items-center justify-center">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
               </div>
-              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">0</span>
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </div>
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Agendamentos</h3>
             <p className="text-gray-600 dark:text-gray-400 text-sm">Visualize seus agendamentos</p>

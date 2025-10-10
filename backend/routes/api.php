@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\AvailabilityController;
+use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\PublicStoreController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -45,4 +46,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Disponibilidade/Horários
     Route::apiResource('availabilities', AvailabilityController::class);
+
+    // Agendamentos (Admin) - Rotas específicas ANTES do apiResource
+    Route::get('bookings/stats', [BookingController::class, 'stats']);
+    Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel']);
+    Route::post('bookings/{id}/complete', [BookingController::class, 'complete']);
+    Route::post('bookings/{id}/confirm', [BookingController::class, 'confirm']);
+    Route::apiResource('bookings', BookingController::class)->only(['index', 'show', 'update']);
 });
