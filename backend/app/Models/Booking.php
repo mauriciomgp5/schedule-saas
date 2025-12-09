@@ -2,60 +2,79 @@
 
 namespace App\Models;
 
+use App\Traits\TenantScoped;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Booking extends Model
 {
-    use SoftDeletes;
+    use HasFactory, TenantScoped;
 
     protected $fillable = [
         'tenant_id',
-        'service_id',
-        'user_id',
         'customer_id',
-        'employee_id',
-        'booking_number',
-        'booking_date',
-        'duration',
-        'price',
+        'service_id',
+        'professional_id',
+        'user_id',
+        'start_time',
+        'end_time',
         'status',
-        'customer_notes',
-        'internal_notes',
-        'cancellation_reason',
-        'cancelled_at',
-        'cancelled_by',
+        'notes',
+        'price',
     ];
 
     protected $casts = [
-        'booking_date' => 'datetime',
-        'cancelled_at' => 'datetime',
+        'start_time' => 'datetime',
+        'end_time' => 'datetime',
         'price' => 'decimal:2',
     ];
 
+    const STATUS_PENDING = 'pending';
+
+    const STATUS_CONFIRMED = 'confirmed';
+
+    const STATUS_CANCELLED = 'cancelled';
+
+    const STATUS_COMPLETED = 'completed';
+
+    /**
+     * Relacionamento com tenant
+     */
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
     }
 
+    /**
+     * Relacionamento com cliente
+     */
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
+    /**
+     * Relacionamento com serviço
+     */
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);
     }
 
-    public function customer(): BelongsTo
-    {
-        return $this->belongsTo(Customer::class, 'customer_id');
-    }
-
+    /**
+     * Relacionamento com usuário (profissional)
+     */
     public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class);
     }
 
-    public function employee(): BelongsTo
+    /**
+     * Relacionamento com profissional (novo)
+     */
+    public function professional(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'employee_id');
+        return $this->belongsTo(Professional::class);
     }
 }

@@ -1,110 +1,70 @@
 services:
-  # Nginx Web Server
-  nginx:
-    image: nginx:alpine
-    container_name: booking-nginx
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    volumes:
-      - ./backend:/var/www/html
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
-    networks:
-      - booking-network
-    depends_on:
-      - php
-      - mysql
-
-  # PHP-FPM Service
-  php:
+  backend:
     build:
-      context: ./docker/php
+      context: ./backend
       dockerfile: Dockerfile
-      args:
-        user: booking
-        uid: 1000
-    container_name: booking-php
-    restart: unless-stopped
+    container_name: booking_backend
+    # Porta não exposta - comunicação interna apenas
     volumes:
       - ./backend:/var/www/html
-    networks:
-      - booking-network
-    depends_on:
-      - mysql
-      - redis
-
-  # MySQL Database
-  mysql:
-    image: mysql:8.0
-    container_name: booking-mysql
-    restart: unless-stopped
-    ports:
-      - "3306:3306"
+      - ./backend/storage:/var/www/html/storage
     environment:
-      MYSQL_DATABASE: ${DB_DATABASE:-booking_system}
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
-      MYSQL_PASSWORD: ${DB_PASSWORD:-root}
-      MYSQL_USER: ${DB_USERNAME:-booking}
-    volumes:
-      - mysql-data:/var/lib/mysql
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=booking_system
+      - DB_USERNAME=root
+      - DB_PASSWORD=root
+      - CACHE_DRIVER=array
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_KEY=base64:CiU+mz6JVK2LAnp3pHZ/VajVqC40SWangh1dh2mKO4s=
+    depends_on:
+      - db
+      - redis
     networks:
-      - booking-network
+      - booking_network
 
-  # Redis Cache
-  redis:
-    image: redis:alpine
-    container_name: booking-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    networks:
-      - booking-network
-
-  # Next.js Frontend
   frontend:
     build:
-      context: ./docker/node
+      context: ./frontend
       dockerfile: Dockerfile
-    container_name: booking-frontend
-    restart: unless-stopped
+    container_name: booking_frontend
     ports:
       - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
-      - /app/.next
-    networks:
-      - booking-network
     environment:
-      - NODE_ENV=development
-      - NEXT_PUBLIC_API_URL=http://localhost:8080/api
-
-  # phpMyAdmin (opcional - para gerenciar o banco)
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: booking-phpmyadmin
-    restart: unless-stopped
-    ports:
-      - "8081:80"
-    environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      PMA_USER: root
-      PMA_PASSWORD: ${DB_PASSWORD:-root}
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
-    networks:
-      - booking-network
+      - VITE_API_TARGET=http://backend:8000
     depends_on:
-      - mysql
+      - backend
+    networks:
+      - booking_network
 
-networks:
-  booking-network:
-    driver: bridge
+  db:
+    image: mysql:8.0
+    container_name: booking_db
+    # Porta não exposta - comunicação interna apenas
+    environment:
+      - MYSQL_DATABASE=booking_system
+      - MYSQL_ROOT_PASSWORD=root
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - booking_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: booking_redis
+    # Porta não exposta - comunicação interna apenas
+    networks:
+      - booking_network
 
 volumes:
-  mysql-data:
-    driver: local
-  redis-data:
-    driver: local
+  db_data:
+
+networks:
+  booking_network:
+    driver: bridge
+

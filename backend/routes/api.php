@@ -1,56 +1,73 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\ServiceController;
-use App\Http\Controllers\Api\AvailabilityController;
 use App\Http\Controllers\Api\BookingController;
-use App\Http\Controllers\Api\PublicStoreController;
-use Illuminate\Http\Request;
+use App\Http\Controllers\Api\CalendarController;
+use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\PublicController;
+use App\Http\Controllers\Api\ServiceController;
+use App\Http\Controllers\Api\ThemeController;
 use Illuminate\Support\Facades\Route;
 
-// Rotas públicas (sem autenticação)
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+/*
+|--------------------------------------------------------------------------
+| API Routes
+|--------------------------------------------------------------------------
+*/
 
-// Rotas públicas para clientes (acesso por slug da loja)
-Route::prefix('public')->group(function () {
-    Route::get('/store/{slug}', [PublicStoreController::class, 'getStoreBySlug']);
-    Route::get('/store/{slug}/services', [PublicStoreController::class, 'getStoreServices']);
-    Route::get('/store/{slug}/categories', [PublicStoreController::class, 'getStoreCategories']);
-    Route::get('/store/{slug}/availability', [PublicStoreController::class, 'getStoreAvailability']);
-    Route::get('/store/{slug}/slots', [PublicStoreController::class, 'getAvailableSlots']);
-    Route::post('/store/{slug}/booking', [PublicStoreController::class, 'createBooking']);
-    Route::get('/store/{slug}/bookings', [PublicStoreController::class, 'getCustomerBookings']);
-    Route::post('/store/{slug}/booking/{bookingId}/cancel', [PublicStoreController::class, 'cancelBooking']);
+// Rotas públicas
+Route::prefix('auth')->group(function () {
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
 
-    // Rotas de autenticação via SMS
-    Route::post('/store/{slug}/send-sms', [PublicStoreController::class, 'sendSms']);
-    Route::post('/store/{slug}/verify-sms', [PublicStoreController::class, 'verifySms']);
+    // Rotas protegidas de autenticação
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/logout', [AuthController::class, 'logout']);
+        Route::get('/me', [AuthController::class, 'me']);
+    });
 
-    // Rotas de autenticação com telefone + senha
-    Route::post('/store/{slug}/login', [PublicStoreController::class, 'login']);
-    Route::post('/store/{slug}/register', [PublicStoreController::class, 'register']);
+    // Login social restrito aos provedores configurados
+    Route::get('/{provider}', [AuthController::class, 'redirectToProvider'])
+        ->where('provider', 'google|github');
+    Route::get('/{provider}/callback', [AuthController::class, 'handleProviderCallback'])
+        ->where('provider', 'google|github');
 });
 
-// Rotas protegidas (com autenticação)
+// Rotas públicas de agendamento (por domínio do tenant)
+Route::prefix('public/{domain}')->group(function () {
+    Route::get('/', [PublicController::class, 'getTenantByDomain']);
+    Route::get('/services', [PublicController::class, 'getServices']);
+    Route::get('/availability', [PublicController::class, 'getAvailability']);
+    Route::post('/bookings', [PublicController::class, 'createBooking']);
+});
+
+// Rotas protegidas
 Route::middleware('auth:sanctum')->group(function () {
-    // Autenticação
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/me', [AuthController::class, 'me']);
-    Route::get('/user', function (Request $request) {
-        return $request->user();
-    });
+
+    // Agendamentos
+    Route::apiResource('bookings', BookingController::class);
+    Route::get('/bookings/calendar/events', [BookingController::class, 'calendar']);
 
     // Serviços
     Route::apiResource('services', ServiceController::class);
 
-    // Disponibilidade/Horários
-    Route::apiResource('availabilities', AvailabilityController::class);
+    // Profissionais
+    Route::apiResource('professionals', \App\Http\Controllers\Api\ProfessionalController::class);
 
-    // Agendamentos (Admin) - Rotas específicas ANTES do apiResource
-    Route::get('bookings/stats', [BookingController::class, 'stats']);
-    Route::post('bookings/{id}/cancel', [BookingController::class, 'cancel']);
-    Route::post('bookings/{id}/complete', [BookingController::class, 'complete']);
-    Route::post('bookings/{id}/confirm', [BookingController::class, 'confirm']);
-    Route::apiResource('bookings', BookingController::class)->only(['index', 'show', 'update']);
+    // Clientes
+    Route::apiResource('customers', CustomerController::class);
+
+    // Calendário
+    Route::prefix('calendar')->group(function () {
+        Route::get('/events', [CalendarController::class, 'events']);
+        Route::get('/availability', [CalendarController::class, 'availability']);
+    });
+
+    // Tema
+    Route::prefix('theme')->group(function () {
+        Route::get('/', [ThemeController::class, 'show']);
+        Route::put('/', [ThemeController::class, 'update']);
+        Route::post('/logo', [ThemeController::class, 'uploadLogo']);
+        Route::post('/favicon', [ThemeController::class, 'uploadFavicon']);
+    });
 });

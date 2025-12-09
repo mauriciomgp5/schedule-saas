@@ -10,16 +10,15 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
         'tenant_id',
         'name',
         'email',
         'password',
-        'phone',
-        'avatar',
         'role',
+        'avatar',
         'is_active',
     ];
 
@@ -37,6 +36,9 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Relacionamento com tenant
+     */
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);

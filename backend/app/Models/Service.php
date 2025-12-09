@@ -2,39 +2,42 @@
 
 namespace App\Models;
 
+use App\Traits\TenantScoped;
+use Database\Factories\ServiceFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Service extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, TenantScoped;
+
+    protected static function newFactory()
+    {
+        return ServiceFactory::new();
+    }
 
     protected $fillable = [
         'tenant_id',
-        'category_id',
         'name',
         'description',
-        'price',
         'duration',
-        'color',
-        'image',
+        'price',
+        'category',
         'is_active',
-        'requires_approval',
-        'max_bookings_per_slot',
-        'buffer_time',
+        'color',
     ];
 
     protected $casts = [
+        'duration' => 'integer',
         'price' => 'decimal:2',
         'is_active' => 'boolean',
-        'requires_approval' => 'boolean',
     ];
 
     /**
-     * Tenant ao qual o serviço pertence
+     * Relacionamento com tenant
      */
     public function tenant(): BelongsTo
     {
@@ -42,15 +45,7 @@ class Service extends Model
     }
 
     /**
-     * Categoria do serviço
-     */
-    public function category(): BelongsTo
-    {
-        return $this->belongsTo(Category::class);
-    }
-
-    /**
-     * Agendamentos deste serviço
+     * Relacionamento com agendamentos
      */
     public function bookings(): HasMany
     {
@@ -58,10 +53,10 @@ class Service extends Model
     }
 
     /**
-     * Disponibilidades específicas deste serviço
+     * Profissionais que atendem este serviço
      */
-    public function availabilities(): HasMany
+    public function professionals(): BelongsToMany
     {
-        return $this->hasMany(Availability::class);
+        return $this->belongsToMany(Professional::class)->withTimestamps();
     }
 }

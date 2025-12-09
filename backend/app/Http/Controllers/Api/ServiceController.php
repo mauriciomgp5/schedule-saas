@@ -4,121 +4,94 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Service;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 
 class ServiceController extends Controller
 {
     /**
-     * Lista todos os serviços do tenant do usuário autenticado
+     * Listar serviços
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $services = Service::where('tenant_id', $request->user()->tenant_id)
-            ->with('category')
-            ->orderBy('name')
-            ->get();
+        $query = Service::where('tenant_id', auth()->user()->tenant_id);
+
+        if ($request->has('is_active')) {
+            $query->where('is_active', $request->is_active);
+        }
+
+        if ($request->has('category')) {
+            $query->where('category', $request->category);
+        }
+
+        $services = $query->orderBy('name')->get();
 
         return response()->json($services);
     }
 
     /**
-     * Cria um novo serviço
+     * Criar serviço
      */
-    public function store(Request $request)
+    public function store(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'category_id' => 'nullable|exists:categories,id',
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'duration' => 'required|integer|min:15',
             'price' => 'required|numeric|min:0',
-            'duration' => 'required|integer|min:1',
-            'color' => 'nullable|string|max:7',
+            'category' => 'nullable|string|max:255',
             'is_active' => 'boolean',
-            'requires_approval' => 'boolean',
-            'max_bookings_per_slot' => 'integer|min:1',
-            'buffer_time' => 'integer|min:0',
+            'color' => 'nullable|string|max:7',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Erro de validação',
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $service = Service::create(array_merge($validated, [
+            'tenant_id' => auth()->user()->tenant_id,
+        ]));
 
-        $service = Service::create([
-            'tenant_id' => $request->user()->tenant_id,
-            'category_id' => $request->category_id,
-            'name' => $request->name,
-            'description' => $request->description,
-            'price' => $request->price,
-            'duration' => $request->duration,
-            'color' => $request->color ?? '#3B82F6',
-            'is_active' => $request->is_active ?? true,
-            'requires_approval' => $request->requires_approval ?? false,
-            'max_bookings_per_slot' => $request->max_bookings_per_slot ?? 1,
-            'buffer_time' => $request->buffer_time ?? 0,
-        ]);
-
-        return response()->json($service->load('category'), 201);
+        return response()->json($service, 201);
     }
 
     /**
-     * Exibe um serviço específico
+     * Exibir serviço
      */
-    public function show(Request $request, $id)
+    public function show(Service $service): JsonResponse
     {
-        $service = Service::where('tenant_id', $request->user()->tenant_id)
-            ->with('category')
-            ->findOrFail($id);
+        $this->authorize('view', $service);
 
         return response()->json($service);
     }
 
     /**
-     * Atualiza um serviço
+     * Atualizar serviço
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, Service $service): JsonResponse
     {
-        $service = Service::where('tenant_id', $request->user()->tenant_id)
-            ->findOrFail($id);
+        $this->authorize('update', $service);
 
-        $validator = Validator::make($request->all(), [
-            'category_id' => 'nullable|exists:categories,id',
-            'name' => 'sometimes|required|string|max:255',
+        $validated = $request->validate([
+            'name' => 'sometimes|string|max:255',
             'description' => 'nullable|string',
-            'price' => 'sometimes|required|numeric|min:0',
-            'duration' => 'sometimes|required|integer|min:1',
-            'color' => 'nullable|string|max:7',
+            'duration' => 'sometimes|integer|min:15',
+            'price' => 'sometimes|numeric|min:0',
+            'category' => 'nullable|string|max:255',
             'is_active' => 'boolean',
-            'requires_approval' => 'boolean',
-            'max_bookings_per_slot' => 'integer|min:1',
-            'buffer_time' => 'integer|min:0',
+            'color' => 'nullable|string|max:7',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Erro de validação',
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        $service->update($validated);
 
-        $service->update($request->all());
-
-        return response()->json($service->load('category'));
+        return response()->json($service);
     }
 
     /**
-     * Remove um serviço
+     * Deletar serviço
      */
-    public function destroy(Request $request, $id)
+    public function destroy(Service $service): JsonResponse
     {
-        $service = Service::where('tenant_id', $request->user()->tenant_id)
-            ->findOrFail($id);
+        $this->authorize('delete', $service);
 
         $service->delete();
 
-        return response()->json(['message' => 'Serviço removido com sucesso']);
+        return response()->json(['message' => 'Serviço deletado com sucesso']);
     }
 }

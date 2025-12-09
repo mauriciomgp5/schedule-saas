@@ -6,27 +6,27 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Database\Factories\TenantFactory;
 
 class Tenant extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
+
+    protected static function newFactory()
+    {
+        return TenantFactory::new();
+    }
 
     protected $fillable = [
         'name',
-        'slug',
+        'domain',
         'email',
         'phone',
-        'description',
-        'logo',
-        'address',
-        'city',
-        'state',
-        'zip_code',
-        'country',
+        'timezone',
+        'locale',
         'is_active',
+        'subscription_status',
         'trial_ends_at',
-        'subscription_plan',
     ];
 
     protected $casts = [
@@ -34,51 +34,51 @@ class Tenant extends Model
         'trial_ends_at' => 'datetime',
     ];
 
-    // Relacionamentos
+    /**
+     * Relacionamento com usuários
+     */
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
     }
 
-    public function categories(): HasMany
+    /**
+     * Relacionamento com tema
+     */
+    public function theme(): HasOne
     {
-        return $this->hasMany(Category::class);
+        return $this->hasOne(Theme::class);
     }
 
-    public function services(): HasMany
+    /**
+     * Relacionamento com assinatura
+     */
+    public function subscription(): HasOne
     {
-        return $this->hasMany(Service::class);
+        return $this->hasOne(Subscription::class);
     }
 
+    /**
+     * Relacionamento com agendamentos
+     */
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
     }
 
-    public function availability(): HasMany
+    /**
+     * Relacionamento com serviços
+     */
+    public function services(): HasMany
     {
-        return $this->hasMany(Availability::class);
+        return $this->hasMany(Service::class);
     }
 
-    public function settings(): HasOne
+    /**
+     * Relacionamento com clientes
+     */
+    public function customers(): HasMany
     {
-        return $this->hasOne(TenantSetting::class);
-    }
-
-    // Scopes
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
-
-    // Boot
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::created(function ($tenant) {
-            // Criar settings padrão ao criar tenant
-            $tenant->settings()->create([]);
-        });
+        return $this->hasMany(Customer::class);
     }
 }
