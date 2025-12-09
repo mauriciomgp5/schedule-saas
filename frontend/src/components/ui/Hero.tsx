@@ -28,19 +28,26 @@ export default function Hero({
   overlay = true,
 }: HeroProps) {
   return (
-    <div
-      className={cn('relative overflow-hidden', className)}
-      style={{
-        background: backgroundImage
-          ? `url(${backgroundImage})`
-          : `linear-gradient(135deg, ${backgroundColor} 0%, ${adjustColor(backgroundColor, -20)} 100%)`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
-    >
-      {/* Overlay */}
-      {overlay && (
-        <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/30 to-black/40" />
+    <div className={cn('relative overflow-hidden', className)}>
+      {/* Background */}
+      {backgroundImage ? (
+        <>
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${backgroundImage})` }}
+          />
+          {overlay && <div className="absolute inset-0 bg-gradient-to-br from-black/60 via-black/40 to-black/60" />}
+        </>
+      ) : (
+        <>
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(135deg, ${backgroundColor} 0%, ${adjustColor(backgroundColor, -20)} 100%)`,
+            }}
+          />
+          {overlay && <div className="absolute inset-0 bg-gradient-to-br from-black/40 via-black/30 to-black/40" />}
+        </>
       )}
 
       {/* Animated background patterns */}

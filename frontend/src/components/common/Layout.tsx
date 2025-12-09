@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { useState } from 'react'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -97,8 +98,9 @@ export default function Layout() {
           </nav>
 
           {/* User section */}
-          <div className="p-4 border-t border-gray-200 bg-gray-50">
-            <div className="flex items-center gap-3 px-4 py-3 mb-2 rounded-xl bg-white border border-gray-200">
+          <div className="p-4 border-t border-gray-200 bg-gray-50 space-y-2">
+            <ThemeToggle className="w-full" />
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white border border-gray-200">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-sm font-bold shadow-md">
                 {user?.name?.charAt(0).toUpperCase()}
               </div>

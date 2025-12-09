@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { useThemeStore } from './store/themeStore'
 import LoginPage from './pages/Login'
+import LandingPage from './pages/LandingPage'
 import DashboardPage from './pages/Dashboard'
 import CalendarPage from './pages/Calendar'
 import BookingsPage from './pages/Bookings'
@@ -58,6 +59,7 @@ function App() {
       }}
     >
       <Routes>
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/agendar/:domain" element={<PublicBookingPage />} />
         <Route
