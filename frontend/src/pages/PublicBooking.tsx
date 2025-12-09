@@ -1,10 +1,29 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Calendar, Clock, User, Mail, Phone, CheckCircle, ArrowRight, Sparkles, Zap } from 'lucide-react'
+import {
+  Calendar,
+  Clock,
+  User,
+  Mail,
+  Phone,
+  CheckCircle,
+  ArrowRight,
+  Sparkles,
+  Zap,
+  Star,
+  Shield,
+  Award,
+} from 'lucide-react'
 import type { Service } from '@/types'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale/pt-BR'
+import Hero from '@/components/ui/Hero'
+import Button from '@/components/ui/Button'
+import Card, { CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/Card'
+import Badge from '@/components/ui/Badge'
+import Footer from '@/components/ui/Footer'
+import { cn } from '@/utils/cn'
 
 export default function PublicBookingPage() {
   const { domain } = useParams<{ domain: string }>()
@@ -20,10 +39,9 @@ export default function PublicBookingPage() {
   })
   const [step, setStep] = useState(1)
 
-  // Usa o proxy do frontend por padrão (mesma origem), evitando erro de conexão ao backend em localhost:8000.
   const API_URL = import.meta.env.VITE_API_URL || '/api'
 
-  // Buscar informações do tenant
+  // Fetch tenant
   const { data: tenant } = useQuery({
     queryKey: ['public-tenant', domain],
     queryFn: async () => {
@@ -34,7 +52,7 @@ export default function PublicBookingPage() {
     enabled: !!domain,
   })
 
-  // Buscar serviços
+  // Fetch services
   const { data: services = [] } = useQuery({
     queryKey: ['public-services', domain],
     queryFn: async () => {
@@ -45,12 +63,13 @@ export default function PublicBookingPage() {
     enabled: !!domain,
   })
 
-  // Buscar horários disponíveis
+  // Fetch availability
   const { data: availability } = useQuery({
     queryKey: ['availability', domain, selectedService?.id, selectedDate, selectedProfessionalId],
     queryFn: async () => {
       const response = await fetch(
-        `${API_URL}/public/${domain}/availability?date=${selectedDate}&service_id=${selectedService?.id}${selectedProfessionalId ? `&professional_id=${selectedProfessionalId}` : ''
+        `${API_URL}/public/${domain}/availability?date=${selectedDate}&service_id=${selectedService?.id}${
+          selectedProfessionalId ? `&professional_id=${selectedProfessionalId}` : ''
         }`
       )
       if (!response.ok) throw new Error('Erro ao verificar disponibilidade')
@@ -59,7 +78,7 @@ export default function PublicBookingPage() {
     enabled: !!selectedService && !!selectedDate,
   })
 
-  // Criar agendamento
+  // Create booking
   const bookingMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await fetch(`${API_URL}/public/${domain}/bookings`, {
@@ -112,456 +131,515 @@ export default function PublicBookingPage() {
   const today = format(new Date(), 'yyyy-MM-dd')
 
   if (!domain) {
-    return <div className="min-h-screen flex items-center justify-center">Domínio não encontrado</div>
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
+        <Card className="text-center">
+          <p className="text-gray-600">Domínio não encontrado</p>
+        </Card>
+      </div>
+    )
   }
+
+  const primaryColor = tenant?.theme?.primary_color || '#667eea'
+  const logo = tenant?.theme?.logo
+  const businessName = tenant?.name || 'Agendamento Online'
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {tenant?.theme?.logo ? (
-                <img src={tenant.theme.logo} alt={tenant.name} className="h-10 w-10 rounded-lg object-contain" />
-              ) : (
-                // Fallback seguro em alto contraste para evitar desaparecer em temas claros
-                <div className="h-10 w-10 rounded-lg bg-gray-900 flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">
-                    {tenant?.name?.charAt(0).toUpperCase() || 'B'}
-                  </span>
-                </div>
-              )}
-              <h1 className="text-xl font-bold text-gray-900">{tenant?.name || 'Agendamento Online'}</h1>
+      {/* Success Screen */}
+      {bookingMutation.isSuccess ? (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <Card padding="xl" className="max-w-2xl w-full text-center">
+            <div className="inline-flex items-center justify-center w-24 h-24 bg-green-100 rounded-full mb-6">
+              <CheckCircle className="w-16 h-16 text-green-600" />
             </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      {step === 1 && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center gap-2 mb-6">
-              <div className="px-3 py-1 bg-green-100 rounded-full flex items-center gap-2">
-                <Clock className="w-4 h-4 text-green-700" />
-                <span className="text-sm font-medium text-green-700">Agendamento Rápido</span>
-              </div>
-              <div className="px-3 py-1 bg-pink-100 rounded-full flex items-center gap-2">
-                <Zap className="w-4 h-4 text-pink-700" />
-                <span className="text-sm font-medium text-pink-700">Sem Cadastro</span>
-              </div>
-            </div>
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Agende seu{' '}
-              <span className="text-primary">horário</span>
-              <br />
-              de forma rápida e fácil
-            </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-4">
-              Escolha o serviço desejado, selecione data e horário, e confirme seu agendamento em poucos cliques.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-sm text-gray-700">
-              <span className="px-3 py-1 rounded-full bg-primary/10 text-primary font-semibold">
-                {tenant?.name || 'Agendamento Online'}
-              </span>
-              <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-600">
-                Domínio público: {domain}
-              </span>
-              <span className="text-gray-500">Sem cadastro • Confirmação instantânea</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
-        {bookingMutation.isSuccess ? (
-          <div className="bg-white rounded-2xl shadow-2xl p-8 md:p-12 text-center">
-            <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
-              <CheckCircle className="w-12 h-12 text-green-600" />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Agendamento Confirmado!</h2>
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Agendamento Confirmado!</h2>
             <p className="text-lg text-gray-600 mb-8">
               Seu agendamento foi criado com sucesso. Você receberá um email de confirmação em breve.
             </p>
-            <button
+            <Button
+              size="lg"
               onClick={() => window.location.reload()}
-              className="inline-flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl"
+              rightIcon={<ArrowRight className="w-5 h-5" />}
             >
               Fazer Novo Agendamento
-              <ArrowRight className="w-5 h-5" />
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Progress Steps */}
-            <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
-              <div className="flex items-center justify-between">
-                {[1, 2, 3, 4].map((s) => {
-                  const status = step === s ? 'current' : step > s ? 'done' : 'todo'
-                  const circleClass =
-                    status === 'current'
-                      ? 'bg-primary text-white font-semibold shadow-lg border-primary'
-                      : status === 'done'
-                        ? 'bg-primary/15 text-primary font-semibold border-primary/60'
-                        : 'bg-gray-100 text-gray-700 border-gray-300 shadow-sm'
-                  const barClass = step > s ? 'bg-primary/70' : 'bg-gray-200'
-
-                  return (
-                    <div key={s} className="flex items-center flex-1">
-                      <div
-                        className={`flex items-center justify-center w-10 h-10 rounded-full font-semibold transition-all border ${circleClass}`}
-                      >
-                        {s}
-                      </div>
-                      {s < 4 && (
-                        <div className={`flex-1 h-1 mx-2 rounded ${barClass}`} />
-                      )}
-                    </div>
-                  )
-                })}
+            </Button>
+          </Card>
+        </div>
+      ) : (
+        <>
+          {/* Hero Section */}
+          {step === 1 && (
+            <Hero
+              title={
+                <>
+                  Agende seu <span className="gradient-text">horário</span>
+                  <br />
+                  de forma rápida e fácil
+                </>
+              }
+              subtitle="Bem-vindo!"
+              description="Escolha o serviço desejado, selecione data e horário, e confirme seu agendamento em poucos cliques."
+              backgroundColor={primaryColor}
+              logo={logo}
+              businessName={businessName}
+              badges={
+                <>
+                  <Badge variant="success" size="lg" icon={<Clock className="w-4 h-4" />}>
+                    Agendamento Rápido
+                  </Badge>
+                  <Badge variant="purple" size="lg" icon={<Zap className="w-4 h-4" />}>
+                    Sem Cadastro
+                  </Badge>
+                  <Badge variant="info" size="lg" icon={<Shield className="w-4 h-4" />}>
+                    100% Seguro
+                  </Badge>
+                </>
+              }
+            >
+              <div className="flex flex-wrap items-center justify-center gap-4 text-white/90">
+                <div className="flex items-center gap-2">
+                  <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium">Avaliação 4.9/5</span>
+                </div>
+                <span className="hidden sm:inline">•</span>
+                <div className="flex items-center gap-2">
+                  <Award className="w-5 h-5" />
+                  <span className="font-medium">+1000 clientes satisfeitos</span>
+                </div>
               </div>
-              <div className="flex justify-between mt-4 text-xs text-gray-600">
-                <span className={step >= 1 ? 'font-semibold text-primary' : ''}>Serviço</span>
-                <span className={step >= 2 ? 'font-semibold text-primary' : ''}>Data</span>
-                <span className={step >= 3 ? 'font-semibold text-primary' : ''}>Horário</span>
-                <span className={step >= 4 ? 'font-semibold text-primary' : ''}>Dados</span>
-              </div>
-            </div>
+            </Hero>
+          )}
 
-            {/* Step 1: Seleção de Serviço */}
-            {step >= 1 && (
-              <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                  <Sparkles className="w-6 h-6 text-primary" />
-                  1. Escolha o Serviço
-                </h2>
-                <p className="text-sm text-gray-600 mb-4">
-                  Serviços disponíveis: {services.length || 0}. Escolha um para continuar.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {services.map((service: Service) => (
-                    <button
-                      key={service.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedService(service)
-                        setSelectedProfessionalId(null)
-                        setStep(2)
-                      }}
-                      className={`group relative p-6 border-2 rounded-2xl text-left transition-all hover:shadow-xl ${selectedService?.id === service.id
-                        ? 'border-primary bg-primary/10 shadow-lg scale-105 ring-2 ring-primary/25'
-                        : 'border-gray-200 hover:border-primary/50 bg-white'
-                        }`}
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex-1">
-                          <h3 className="text-xl font-bold text-gray-900 mb-2">{service.name}</h3>
-                          {service.description && (
-                            <p className="text-sm text-gray-600 mb-4">{service.description}</p>
+          {/* Content */}
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 -mt-16 relative z-10">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Progress Steps */}
+              <Card padding="lg">
+                <div className="flex items-center justify-between mb-4">
+                  {[1, 2, 3, 4].map((s) => {
+                    const status = step === s ? 'current' : step > s ? 'done' : 'todo'
+                    return (
+                      <div key={s} className="flex items-center flex-1">
+                        <div
+                          className={cn(
+                            'flex items-center justify-center w-12 h-12 rounded-full font-bold transition-all border-2',
+                            status === 'current' &&
+                              'bg-primary text-primary-foreground scale-110 shadow-xl border-primary',
+                            status === 'done' &&
+                              'bg-primary/20 text-primary border-primary shadow-lg',
+                            status === 'todo' && 'bg-gray-100 text-gray-500 border-gray-300'
                           )}
+                        >
+                          {status === 'done' ? <CheckCircle className="w-6 h-6" /> : s}
                         </div>
-                        {service.color && (
+                        {s < 4 && (
                           <div
-                            className="w-8 h-8 rounded-lg border-2 border-gray-200 shadow-sm"
-                            style={{ backgroundColor: service.color }}
+                            className={cn(
+                              'flex-1 h-2 mx-3 rounded-full transition-all',
+                              step > s ? 'bg-primary' : 'bg-gray-200'
+                            )}
                           />
                         )}
                       </div>
-                      <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="text-gray-600 flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {service.duration} min
-                          </span>
-                        </div>
-                        <span className="text-2xl font-bold text-primary">
-                          {new Intl.NumberFormat('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          }).format(Number(service.price))}
-                        </span>
-                      </div>
-                      {selectedService?.id === service.id && (
-                        <div className="absolute top-4 right-4">
-                          <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                            <CheckCircle className="w-4 h-4 text-primary-foreground" />
-                          </div>
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                    )
+                  })}
                 </div>
-              </div>
-            )}
+                <div className="flex justify-between text-sm font-medium">
+                  <span className={step >= 1 ? 'text-primary' : 'text-gray-500'}>Serviço</span>
+                  <span className={step >= 2 ? 'text-primary' : 'text-gray-500'}>Data</span>
+                  <span className={step >= 3 ? 'text-primary' : 'text-gray-500'}>Horário</span>
+                  <span className={step >= 4 ? 'text-primary' : 'text-gray-500'}>Dados</span>
+                </div>
+              </Card>
 
-            {/* Step 2: Profissional e Data */}
-            {step >= 2 && selectedService && (
-              <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-                    <User className="w-6 h-6 text-primary" />
-                    2. Escolha o Profissional (opcional)
-                  </h2>
-                  {selectedService.professionals && selectedService.professionals.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedProfessionalId(null)}
-                        className={`p-4 border-2 rounded-xl text-left transition-all ${selectedProfessionalId === null
-                          ? 'border-primary bg-primary/10 shadow ring-2 ring-primary/25'
-                          : 'border-gray-200 hover:border-primary/50'
-                          }`}
-                      >
-                        Qualquer profissional disponível
-                      </button>
-                      {selectedService.professionals.map((pro) => (
+              {/* Step 1: Service Selection */}
+              {step >= 1 && (
+                <Card padding="lg" hover>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <Sparkles className="w-7 h-7 text-primary" />
+                      Escolha o Serviço
+                    </CardTitle>
+                    <CardDescription>
+                      {services.length} serviço{services.length !== 1 ? 's' : ''} disponível
+                      {services.length !== 1 ? 's' : ''}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {services.map((service: Service) => (
                         <button
-                          key={pro.id}
+                          key={service.id}
                           type="button"
-                          onClick={() => setSelectedProfessionalId(pro.id)}
-                          className={`p-4 border-2 rounded-xl text-left transition-all flex items-center gap-3 ${selectedProfessionalId === pro.id
-                            ? 'border-primary bg-primary/10 shadow ring-2 ring-primary/25'
-                            : 'border-gray-200 hover:border-primary/50'
-                            }`}
+                          onClick={() => {
+                            setSelectedService(service)
+                            setSelectedProfessionalId(null)
+                            setStep(2)
+                          }}
+                          className={cn(
+                            'group relative p-6 border-2 rounded-2xl text-left transition-all duration-200',
+                            selectedService?.id === service.id
+                              ? 'border-primary bg-primary/5 shadow-xl scale-105 ring-4 ring-primary/20'
+                              : 'border-gray-200 hover:border-primary/50 hover:shadow-lg bg-white'
+                          )}
                         >
-                          <div
-                            className="w-10 h-10 rounded-full border flex items-center justify-center text-white font-bold"
-                            style={{ backgroundColor: pro.color || '#0ea5e9' }}
-                          >
-                            {pro.name.charAt(0).toUpperCase()}
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                              <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors">
+                                {service.name}
+                              </h3>
+                              {service.description && (
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {service.description}
+                                </p>
+                              )}
+                            </div>
+                            {service.color && (
+                              <div
+                                className="w-10 h-10 rounded-xl border-2 border-gray-200 shadow-sm flex-shrink-0"
+                                style={{ backgroundColor: service.color }}
+                              />
+                            )}
                           </div>
-                          <div className="flex-1">
-                            <p className="font-semibold text-gray-900">{pro.name}</p>
-                            {pro.email && <p className="text-sm text-gray-600">{pro.email}</p>}
+                          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Clock className="w-4 h-4" />
+                              <span>{service.duration} min</span>
+                            </div>
+                            <span className="text-2xl font-bold text-primary">
+                              {new Intl.NumberFormat('pt-BR', {
+                                style: 'currency',
+                                currency: 'BRL',
+                              }).format(Number(service.price))}
+                            </span>
                           </div>
+                          {selectedService?.id === service.id && (
+                            <div className="absolute top-4 right-4">
+                              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center shadow-lg">
+                                <CheckCircle className="w-5 h-5 text-primary-foreground" />
+                              </div>
+                            </div>
+                          )}
                         </button>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-sm text-gray-600">Nenhum profissional vinculado; usaremos qualquer disponível.</p>
-                  )}
-                </div>
+                  </CardContent>
+                </Card>
+              )}
 
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-3">
-                    <Calendar className="w-6 h-6 text-primary" />
-                    3. Escolha a Data
-                  </h2>
-                  <input
-                    type="date"
-                    min={today}
-                    value={selectedDate}
-                    onChange={(e) => {
-                      setSelectedDate(e.target.value)
-                      setSelectedTime('')
-                      setStep(3)
-                    }}
-                    className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-lg font-medium transition-all"
-                    required
-                  />
-                  {selectedDate && (
-                    <p className="mt-4 text-sm text-gray-600">
-                      Data selecionada:{' '}
-                      <span className="font-semibold">
-                        {format(new Date(selectedDate), "EEEE, dd 'de' MMMM", { locale: ptBR })}
-                      </span>
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
+              {/* Step 2: Professional & Date */}
+              {step >= 2 && selectedService && (
+                <Card padding="lg" hover>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <User className="w-7 h-7 text-primary" />
+                      Profissional (opcional)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {selectedService.professionals && selectedService.professionals.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-8">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedProfessionalId(null)}
+                          className={cn(
+                            'p-4 border-2 rounded-xl text-left transition-all',
+                            selectedProfessionalId === null
+                              ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20'
+                              : 'border-gray-200 hover:border-primary/50'
+                          )}
+                        >
+                          <span className="font-medium">Qualquer profissional disponível</span>
+                        </button>
+                        {selectedService.professionals.map((pro) => (
+                          <button
+                            key={pro.id}
+                            type="button"
+                            onClick={() => setSelectedProfessionalId(pro.id)}
+                            className={cn(
+                              'p-4 border-2 rounded-xl text-left transition-all flex items-center gap-3',
+                              selectedProfessionalId === pro.id
+                                ? 'border-primary bg-primary/5 shadow-lg ring-2 ring-primary/20'
+                                : 'border-gray-200 hover:border-primary/50'
+                            )}
+                          >
+                            <div
+                              className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-md"
+                              style={{ backgroundColor: pro.color || '#667eea' }}
+                            >
+                              {pro.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-semibold text-gray-900">{pro.name}</p>
+                              {pro.email && (
+                                <p className="text-sm text-gray-600">{pro.email}</p>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-600 mb-8">
+                        Nenhum profissional vinculado; usaremos qualquer disponível.
+                      </p>
+                    )}
 
-            {/* Step 3: Seleção de Horário */}
-            {step >= 3 && selectedDate && availability && (
-              <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                  <Clock className="w-6 h-6 text-primary" />
-                  3. Escolha o Horário
-                </h2>
-                {availability.available_slots.length > 0 ? (
-                  <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                    {availability.available_slots.map((slot: { start: string; end: string }) => (
-                      <button
-                        key={slot.start}
-                        type="button"
-                        onClick={() => {
-                          setSelectedTime(slot.start)
-                          setStep(4)
-                        }}
-                        className={`p-4 border-2 rounded-xl font-semibold transition-all hover:scale-105 ${selectedTime === slot.start
-                          ? 'border-primary bg-primary text-primary-foreground shadow-lg ring-2 ring-primary/30'
-                          : 'border-gray-200 hover:border-primary/50 bg-white text-gray-900'
-                          }`}
-                      >
-                        {slot.start}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-gray-600 mb-4">Nenhum horário disponível para esta data.</p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedDate('')
-                        setStep(2)
-                      }}
-                      className="text-primary hover:underline font-medium"
-                    >
-                      Escolher outra data
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Step 4: Dados do Cliente */}
-            {step >= 4 && selectedTime && (
-              <div className="bg-white rounded-2xl shadow-xl p-6 md:p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-                  <User className="w-6 h-6 text-primary" />
-                  4. Seus Dados
-                </h2>
-                <div className="space-y-5">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Nome Completo *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.customer_name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, customer_name: e.target.value })
-                      }
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                      placeholder="Seu nome completo"
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        <Mail className="w-4 h-4 inline mr-1" />
-                        Email *
-                      </label>
+                    <div className="border-t border-gray-200 pt-6">
+                      <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-3">
+                        <Calendar className="w-6 h-6 text-primary" />
+                        Escolha a Data
+                      </h3>
                       <input
-                        type="email"
-                        value={formData.customer_email}
-                        onChange={(e) =>
-                          setFormData({ ...formData, customer_email: e.target.value })
-                        }
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                        placeholder="seu@email.com"
+                        type="date"
+                        min={today}
+                        value={selectedDate}
+                        onChange={(e) => {
+                          setSelectedDate(e.target.value)
+                          setSelectedTime('')
+                          setStep(3)
+                        }}
+                        className="w-full px-6 py-4 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary text-lg font-medium transition-all"
                         required
                       />
+                      {selectedDate && (
+                        <p className="mt-4 text-sm text-gray-600">
+                          Data selecionada:{' '}
+                          <span className="font-semibold text-primary">
+                            {format(new Date(selectedDate + 'T00:00:00'), "EEEE, dd 'de' MMMM", {
+                              locale: ptBR,
+                            })}
+                          </span>
+                        </p>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        <Phone className="w-4 h-4 inline mr-1" />
-                        Telefone
-                      </label>
-                      <input
-                        type="tel"
-                        value={formData.customer_phone}
-                        onChange={(e) =>
-                          setFormData({ ...formData, customer_phone: e.target.value })
-                        }
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                        placeholder="(00) 00000-0000"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Observações (opcional)
-                    </label>
-                    <textarea
-                      value={formData.notes}
-                      onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-                      rows={4}
-                      placeholder="Alguma observação especial sobre o agendamento?"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
+                  </CardContent>
+                </Card>
+              )}
 
-            {/* Resumo e Botão de Confirmar */}
-            {step >= 4 && selectedTime && (
-              <div className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl shadow-xl p-6 md:p-8 border-2 border-primary/20">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">Resumo do Agendamento</h3>
-                <div className="space-y-3 mb-6">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Serviço:</span>
-                    <span className="font-semibold text-gray-900">{selectedService?.name}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Data:</span>
-                    <span className="font-semibold text-gray-900">
-                      {selectedDate &&
-                        format(new Date(selectedDate), "dd 'de' MMMM", { locale: ptBR })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Profissional:</span>
-                    <span className="font-semibold text-gray-900">
-                      {selectedProfessionalId
-                        ? selectedService?.professionals?.find((p) => p.id === selectedProfessionalId)?.name ||
-                        'Profissional selecionado'
-                        : 'Qualquer disponível'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Horário:</span>
-                    <span className="font-semibold text-gray-900">{selectedTime}</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-3 border-t border-gray-300">
-                    <span className="text-lg font-semibold text-gray-900">Total:</span>
-                    <span className="text-2xl font-bold text-primary">
-                      {new Intl.NumberFormat('pt-BR', {
-                        style: 'currency',
-                        currency: 'BRL',
-                      }).format(Number(selectedService?.price || 0))}
-                    </span>
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  disabled={bookingMutation.isPending || !formData.customer_name || !formData.customer_email}
-                  className="w-full py-4 px-6 bg-primary text-primary-foreground rounded-xl font-bold text-lg hover:bg-primary/90 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              {/* Step 3: Time Selection */}
+              {step >= 3 && selectedDate && availability && (
+                <Card padding="lg" hover>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <Clock className="w-7 h-7 text-primary" />
+                      Escolha o Horário
+                    </CardTitle>
+                    <CardDescription>
+                      {availability.available_slots?.length || 0} horário
+                      {(availability.available_slots?.length || 0) !== 1 ? 's' : ''} disponível
+                      {(availability.available_slots?.length || 0) !== 1 ? 's' : ''}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {availability.available_slots?.length > 0 ? (
+                      <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                        {availability.available_slots.map((slot: { start: string; end: string }) => (
+                          <button
+                            key={slot.start}
+                            type="button"
+                            onClick={() => {
+                              setSelectedTime(slot.start)
+                              setStep(4)
+                            }}
+                            className={cn(
+                              'p-4 border-2 rounded-xl font-semibold transition-all',
+                              selectedTime === slot.start
+                                ? 'border-primary bg-primary text-primary-foreground shadow-xl scale-110 ring-4 ring-primary/30'
+                                : 'border-gray-200 hover:border-primary/50 hover:shadow-lg bg-white text-gray-900 hover:scale-105'
+                            )}
+                          >
+                            {slot.start}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Clock className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <p className="text-gray-600 mb-4">Nenhum horário disponível para esta data.</p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedDate('')
+                            setStep(2)
+                          }}
+                        >
+                          Escolher outra data
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Step 4: Customer Data */}
+              {step >= 4 && selectedTime && (
+                <Card padding="lg" hover>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-3">
+                      <User className="w-7 h-7 text-primary" />
+                      Seus Dados
+                    </CardTitle>
+                    <CardDescription>Preencha suas informações para confirmar</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-5">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Nome Completo *
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.customer_name}
+                          onChange={(e) =>
+                            setFormData({ ...formData, customer_name: e.target.value })
+                          }
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                          placeholder="Seu nome completo"
+                          required
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <Mail className="w-4 h-4 inline mr-1" />
+                            Email *
+                          </label>
+                          <input
+                            type="email"
+                            value={formData.customer_email}
+                            onChange={(e) =>
+                              setFormData({ ...formData, customer_email: e.target.value })
+                            }
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                            placeholder="seu@email.com"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <Phone className="w-4 h-4 inline mr-1" />
+                            Telefone
+                          </label>
+                          <input
+                            type="tel"
+                            value={formData.customer_phone}
+                            onChange={(e) =>
+                              setFormData({ ...formData, customer_phone: e.target.value })
+                            }
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                            placeholder="(00) 00000-0000"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Observações (opcional)
+                        </label>
+                        <textarea
+                          value={formData.notes}
+                          onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+                          rows={4}
+                          placeholder="Alguma observação especial sobre o agendamento?"
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Summary & Submit */}
+              {step >= 4 && selectedTime && (
+                <Card
+                  padding="lg"
+                  className="bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5 border-2 border-primary/20"
                 >
-                  {bookingMutation.isPending ? (
-                    'Agendando...'
-                  ) : (
-                    <>
-                      Confirmar Agendamento
-                      <ArrowRight className="w-5 h-5" />
-                    </>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-6">Resumo do Agendamento</h3>
+                  <div className="space-y-4 mb-8">
+                    <div className="flex justify-between items-center p-4 bg-white rounded-xl">
+                      <span className="text-gray-600 font-medium">Serviço:</span>
+                      <span className="font-bold text-gray-900">{selectedService?.name}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-4 bg-white rounded-xl">
+                      <span className="text-gray-600 font-medium">Data:</span>
+                      <span className="font-bold text-gray-900">
+                        {selectedDate &&
+                          format(
+                            new Date(selectedDate + 'T00:00:00'),
+                            "dd 'de' MMMM 'de' yyyy",
+                            {
+                              locale: ptBR,
+                            }
+                          )}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-4 bg-white rounded-xl">
+                      <span className="text-gray-600 font-medium">Horário:</span>
+                      <span className="font-bold text-gray-900">{selectedTime}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-4 bg-white rounded-xl">
+                      <span className="text-gray-600 font-medium">Profissional:</span>
+                      <span className="font-bold text-gray-900">
+                        {selectedProfessionalId
+                          ? selectedService?.professionals?.find(
+                              (p) => p.id === selectedProfessionalId
+                            )?.name || 'Profissional selecionado'
+                          : 'Qualquer disponível'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-4 bg-primary/10 rounded-xl border-2 border-primary/20">
+                      <span className="text-lg font-bold text-gray-900">Total:</span>
+                      <span className="text-3xl font-bold text-primary">
+                        {new Intl.NumberFormat('pt-BR', {
+                          style: 'currency',
+                          currency: 'BRL',
+                        }).format(Number(selectedService?.price || 0))}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    type="submit"
+                    size="xl"
+                    className="w-full"
+                    isLoading={bookingMutation.isPending}
+                    disabled={
+                      bookingMutation.isPending || !formData.customer_name || !formData.customer_email
+                    }
+                    rightIcon={<ArrowRight className="w-6 h-6" />}
+                  >
+                    Confirmar Agendamento
+                  </Button>
+                  {bookingMutation.isError && (
+                    <p className="mt-4 text-red-600 text-sm text-center font-medium">
+                      {bookingMutation.error instanceof Error
+                        ? bookingMutation.error.message
+                        : 'Erro ao criar agendamento'}
+                    </p>
                   )}
-                </button>
-                {bookingMutation.isError && (
-                  <p className="mt-4 text-red-600 text-sm text-center font-medium">
-                    {bookingMutation.error instanceof Error
-                      ? bookingMutation.error.message
-                      : 'Erro ao criar agendamento'}
-                  </p>
-                )}
-              </div>
-            )}
-          </form>
-        )}
-      </div>
+                </Card>
+              )}
+            </form>
+          </div>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <p className="text-center text-sm text-gray-500">
-            © {new Date().getFullYear()} {tenant?.name || 'Booking System'}. Todos os direitos reservados.
-          </p>
-        </div>
-      </footer>
+          {/* Footer */}
+          <Footer
+            businessName={businessName}
+            email={tenant?.email}
+            phone={tenant?.phone}
+            address={tenant?.address}
+            businessHours="Seg - Sex: 9h às 18h
+Sáb: 9h às 13h"
+            social={{
+              instagram: 'https://instagram.com',
+              facebook: 'https://facebook.com',
+            }}
+          />
+        </>
+      )}
     </div>
   )
 }

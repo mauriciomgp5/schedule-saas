@@ -15,11 +15,13 @@ export interface Tenant {
   domain: string;
   email: string;
   phone?: string;
+  address?: string;
   timezone: string;
   locale: string;
   is_active: boolean;
   subscription_status: string;
   trial_ends_at?: string;
+  theme?: Theme;
 }
 
 export interface Booking {
